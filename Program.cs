@@ -1,4 +1,5 @@
-using bekokkonen.pro.Config;
+using bekokkonen.pro.Global.Config;
+using bekokkonen.pro.MQ.Implementation;
 using bekokkonen.pro.Routes.MapEndpoints;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -22,6 +23,8 @@ namespace bekokkonen.pro
 
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
+
+            builder.Services.AddSingleton<MQClient>();
 
             var app = builder.Build();
 

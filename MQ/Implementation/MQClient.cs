@@ -1,4 +1,5 @@
-﻿using bekokkonen.pro.Config;
+﻿using bekokkonen.pro.Global.Config;
+using bekokkonen.pro.Global.Interfaces;
 using MQTTnet;
 using MQTTnet.Packets;
 using System.Text;
@@ -6,40 +7,46 @@ using System.Text.Json;
 
 namespace bekokkonen.pro.MQ.Implementation
 {
-    public class MQClient
+    public sealed class MQClient : IAsyncInitialization
     {
         private string _serviceName;
         private readonly string _clientId = "bekokkonenpro";
         private ILogger<MQClient> _logger;
-        private IConfiguration _config;
         private GlobalConfig.RabbitMQ _mqConfig;
 
-        public MQClient(ILogger<MQClient> logger, IConfiguration config)
+        public MQClient(ILogger<MQClient> logger)
         {
             _serviceName = nameof(MQClient);
             _logger = logger;
-            _config = config;
             _mqConfig = GlobalConfig.RabbitMQConfig!;
-            Task mqTask = StartMqttClient();
+            Initialization = StartMqttClient();
         }
+
+        public Task Initialization { get; private set; }
 
         private async Task StartMqttClient()
         {
             _logger.LogInformation($"{_serviceName}:: Start MQtt client");
-            var mqttClient = new MqttClientFactory().CreateMqttClient();
-            mqttClient.ApplicationMessageReceivedAsync += m => HandleMessage(m.ApplicationMessage);
-            var topicFilter = new MqttTopicFilter
+            try
             {
-                Topic = _mqConfig.mqttTopic,
-            };
-            var mqttClientOptions = new MqttClientOptionsBuilder()
-                .WithTcpServer(_mqConfig.mqttServer, 1883)
-                .WithClientId(_clientId)
-                .WithCredentials(_mqConfig.mqttUser, _mqConfig.mqttPassword)
-                .WithCleanSession()
-                .Build();
-            var response = await mqttClient.ConnectAsync(mqttClientOptions, CancellationToken.None);
-            await mqttClient.SubscribeAsync(topicFilter);
+                var mqttClient = new MqttClientFactory().CreateMqttClient();
+                mqttClient.ApplicationMessageReceivedAsync += m => HandleMessage(m.ApplicationMessage);
+                var mqttClientOptions = new MqttClientOptionsBuilder()
+                    .WithTcpServer(_mqConfig.mqttServer, 1883)
+                    .WithClientId(_clientId)
+                    .WithCredentials(_mqConfig.mqttUser, _mqConfig.mqttPassword)
+                    .WithCleanSession()
+                    .Build();
+                var response = await mqttClient.ConnectAsync(mqttClientOptions, CancellationToken.None);
+
+                var subResult = await mqttClient.SubscribeAsync(_mqConfig.mqttTopic);
+                subResult.Items.ToList().ForEach(s => _logger.LogInformation($"{_serviceName}:: subscribed to '{s.TopicFilter.Topic}' with '{s.ResultCode}' "));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"{_serviceName}:: MQtt client error {ex.Message}");
+                throw;
+            }
             _logger.LogInformation($"{_serviceName}:: MQtt client connected successfully");
         }
 

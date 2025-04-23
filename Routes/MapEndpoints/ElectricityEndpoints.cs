@@ -1,6 +1,9 @@
 ﻿using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Identity.Web.Resource;
+using bekokkonen.pro.MQ.Implementation;
+using NuGet.Protocol;
+using Microsoft.AspNetCore.Mvc;
 namespace bekokkonen.pro.Routes.MapEndpoints
 {
     public static partial class ApiMapper
@@ -15,6 +18,15 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                 return TypedResults.Ok("jees");
             })
             .WithName("GetAllElectricityEndpoints")
+            .WithOpenApi()
+            .RequireAuthorization();
+
+            electricityItems.MapGet("/task", ([FromServices] MQClient mqClient, HttpContext httpContext) =>
+            {
+                httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
+                return TypedResults.Ok(mqClient.Initialization.Exception?.Message);
+            })
+            .WithName("GetMQClientTask")
             .WithOpenApi()
             .RequireAuthorization();
 

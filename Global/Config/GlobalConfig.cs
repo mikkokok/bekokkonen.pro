@@ -1,4 +1,4 @@
-﻿namespace bekokkonen.pro.Config
+﻿namespace bekokkonen.pro.Global.Config
 {
     public static class GlobalConfig
     {

@@ -1,4 +1,4 @@
-﻿using bekokkonen.pro.Config;
+﻿using bekokkonen.pro.Global.Config;
 
 namespace bekokkonen.pro.Routes.Middlewares
 {
