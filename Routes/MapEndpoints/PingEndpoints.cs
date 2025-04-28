@@ -5,7 +5,7 @@
         public static void MapPingEndpoints(this WebApplication app)
         {
             var pingItems = app.MapGroup("/api/ping").WithTags("PingEndpoints");
-            pingItems.MapGet("/ping", () => "pong");
+            pingItems.MapGet("/", () => "pong");
         }
     }
 }

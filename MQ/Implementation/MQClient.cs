@@ -1,5 +1,8 @@
 ﻿using bekokkonen.pro.Global.Config;
 using bekokkonen.pro.Global.Interfaces;
+using bekokkonen.pro.Models;
+using bekokkonen.pro.Routes.Hubs;
+using Microsoft.AspNetCore.SignalR;
 using MQTTnet;
 using MQTTnet.Packets;
 using System.Text;
@@ -13,12 +16,14 @@ namespace bekokkonen.pro.MQ.Implementation
         private readonly string _clientId = "bekokkonenpro";
         private ILogger<MQClient> _logger;
         private GlobalConfig.RabbitMQ _mqConfig;
+        private IHubContext<ConsumptionHub> _consumptionHub;
 
-        public MQClient(ILogger<MQClient> logger)
+        public MQClient(ILogger<MQClient> logger, IHubContext<ConsumptionHub> electricityHub)
         {
             _serviceName = nameof(MQClient);
             _logger = logger;
             _mqConfig = GlobalConfig.RabbitMQConfig!;
+            _consumptionHub = electricityHub;
             Initialization = StartMqttClient();
         }
 
@@ -40,7 +45,7 @@ namespace bekokkonen.pro.MQ.Implementation
                 var response = await mqttClient.ConnectAsync(mqttClientOptions, CancellationToken.None);
 
                 var subResult = await mqttClient.SubscribeAsync(_mqConfig.mqttTopic);
-                subResult.Items.ToList().ForEach(s => _logger.LogInformation($"{_serviceName}:: subscribed to '{s.TopicFilter.Topic}' with '{s.ResultCode}' "));
+                subResult.Items.ToList().ForEach(s => _logger.LogInformation($"{_serviceName}:: Subscribed to '{s.TopicFilter.Topic}' with '{s.ResultCode}' "));
             }
             catch (Exception ex)
             {
@@ -50,14 +55,33 @@ namespace bekokkonen.pro.MQ.Implementation
             _logger.LogInformation($"{_serviceName}:: MQtt client connected successfully");
         }
 
-        private Task HandleMessage(MqttApplicationMessage applicationMessage)
+        private async Task HandleMessage(MqttApplicationMessage applicationMessage)
         {
             var payload = Encoding.UTF8.GetString(applicationMessage.Payload);
-            _logger.LogInformation($"{_serviceName}:: Received message {payload}");
-            //var deSerializerOptions = new JsonSerializerOptions();
-            //deSerializerOptions.Converters.Add(new DoubleFromJsonConverter());
-            //var data = JsonSerializer.Deserialize<SensorData>(payload, deSerializerOptions);
-            return Task.CompletedTask;
+            if (double.TryParse(payload, out double consumptionValue))
+            {
+                var dataToSend = new ConsumptionData
+                {
+                    Timestamp = DateTime.Now,
+                    Unit = "Wh",
+                    Value = consumptionValue
+                };
+
+                switch (applicationMessage.Topic)
+                {
+                    case "p1meter/actual_consumption":
+                        _logger.LogInformation($"{_serviceName}:: Received message {payload} in p1meter/actual_consumption");
+                        await _consumptionHub.Clients.All.SendAsync("broadcastActualConsumption", dataToSend);
+                        break;
+                    case "p1meter/actual_returndelivery":
+                        _logger.LogInformation($"{_serviceName}:: Received message {payload} in p1meter/actual_returndelivery");
+                        await _consumptionHub.Clients.All.SendAsync("broadcastReturnDelivery", dataToSend);
+                        break;
+                    default:
+                        _logger.LogInformation($"{_serviceName}:: Received message {payload} in {applicationMessage.Topic}");
+                        break;
+                }
+            }
         }
     }
 }

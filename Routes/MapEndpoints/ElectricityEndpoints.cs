@@ -4,6 +4,7 @@ using Microsoft.Identity.Web.Resource;
 using bekokkonen.pro.MQ.Implementation;
 using NuGet.Protocol;
 using Microsoft.AspNetCore.Mvc;
+using bekokkonen.pro.Routes.Hubs;
 namespace bekokkonen.pro.Routes.MapEndpoints
 {
     public static partial class ApiMapper
@@ -30,6 +31,9 @@ namespace bekokkonen.pro.Routes.MapEndpoints
             .WithOpenApi()
             .RequireAuthorization();
 
+            electricityItems.MapHub<ConsumptionHub>("/consumption")
+                .WithOpenApi()
+                .RequireAuthorization();
         }
     }
 }

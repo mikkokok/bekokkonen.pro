@@ -1,5 +1,6 @@
 using bekokkonen.pro.Global.Config;
 using bekokkonen.pro.MQ.Implementation;
+using bekokkonen.pro.Routes.Hubs;
 using bekokkonen.pro.Routes.MapEndpoints;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -23,8 +24,20 @@ namespace bekokkonen.pro
 
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
-
+            builder.Services.AddSignalR();
+            builder.Services.AddSingleton<ConsumptionHub>();    
             builder.Services.AddSingleton<MQClient>();
+
+            builder.Services.AddCors(options =>
+            {
+                options.AddDefaultPolicy(policy =>
+                {
+                    policy.WithOrigins("http://localhost:5173") // Your frontend origin
+                          .AllowAnyHeader()
+                          .AllowAnyMethod()
+                          .AllowCredentials(); // IMPORTANT for SignalR with authentication
+                });
+            });
 
             var app = builder.Build();
 
@@ -35,11 +48,12 @@ namespace bekokkonen.pro
             }
 
             app.UseHttpsRedirection();
+            app.UseCors();
 
             app.UseAuthentication();
 
+            app.UseRouting();
             app.UseAuthorization();
-
             app.MapPingEndpoints();
             app.MapElectricityEndpoints();
 
