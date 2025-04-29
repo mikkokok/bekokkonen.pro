@@ -22,20 +22,37 @@ namespace bekokkonen.pro
                 .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
             builder.Services.AddAuthorization();
 
+            builder.Services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+            {
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        var path = context.HttpContext.Request.Path;
+                        var accessToken = context.Request.Query["access_token"];
+                        if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/api/electricity/consumption"))
+                        {
+                            context.Token = accessToken;
+                        }
+                        return Task.CompletedTask;
+                    }
+                };
+            });
+
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
             builder.Services.AddSignalR();
-            builder.Services.AddSingleton<ConsumptionHub>();    
+            builder.Services.AddSingleton<ConsumptionHub>();
             builder.Services.AddSingleton<MQClient>();
 
             builder.Services.AddCors(options =>
             {
                 options.AddDefaultPolicy(policy =>
                 {
-                    policy.WithOrigins("http://localhost:5173") // Your frontend origin
+                    policy.WithOrigins(["http://localhost:5173", "https://kokkonen.pro", "http://192.168.1.38"])
+                          .WithMethods("GET")
                           .AllowAnyHeader()
-                          .AllowAnyMethod()
-                          .AllowCredentials(); // IMPORTANT for SignalR with authentication
+                          .AllowCredentials();
                 });
             });
 
