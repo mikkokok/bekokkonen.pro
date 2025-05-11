@@ -1,17 +1,13 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using bekokkonen.pro.Models;
+using Microsoft.AspNetCore.SignalR;
 
 namespace bekokkonen.pro.Routes.Hubs
 {
     public class ConsumptionHub : Hub
     {
-        public async Task SendReturnDelivery(string payload)
+        public async Task SendConsumptionData(ConsumptionData payload)
         {
-            await Clients.All.SendAsync("broadcastReturnDelivery", payload);
-
-        }
-        public async Task SendActualConsumption(string payload)
-        {
-            await Clients.All.SendAsync("broadcastActualConsumption", payload);
+            await Clients.All.SendAsync("broadcastConsumptionData", payload);
 
         }
     }

@@ -17,6 +17,7 @@ namespace bekokkonen.pro.MQ.Implementation
         private ILogger<MQClient> _logger;
         private GlobalConfig.RabbitMQ _mqConfig;
         private IHubContext<ConsumptionHub> _consumptionHub;
+        private ConsumptionData? _consumptionData;
 
         public MQClient(ILogger<MQClient> logger, IHubContext<ConsumptionHub> electricityHub)
         {
@@ -60,26 +61,63 @@ namespace bekokkonen.pro.MQ.Implementation
             var payload = Encoding.UTF8.GetString(applicationMessage.Payload);
             if (double.TryParse(payload, out double consumptionValue))
             {
-                var dataToSend = new ConsumptionData
-                {
-                    Timestamp = DateTime.Now,
-                    Unit = "Wh",
-                    Value = consumptionValue
-                };
+                _consumptionData ??= new ConsumptionData
+                    {
+                        Timestamp = DateTime.Now,
+                        Data = []
+                    };
 
                 switch (applicationMessage.Topic)
                 {
                     case "p1meter/actual_consumption":
-                        _logger.LogInformation($"{_serviceName}:: Received message {payload} in p1meter/actual_consumption");
-                        await _consumptionHub.Clients.All.SendAsync("broadcastActualConsumption", dataToSend);
+                        _consumptionData.Data.Add(ConsumptionKeys.ActualConsumption, consumptionValue);
                         break;
                     case "p1meter/actual_returndelivery":
-                        _logger.LogInformation($"{_serviceName}:: Received message {payload} in p1meter/actual_returndelivery");
-                        await _consumptionHub.Clients.All.SendAsync("broadcastReturnDelivery", dataToSend);
+                        _consumptionData.Data.Add(ConsumptionKeys.ActualReturndelivery, consumptionValue);
+                        break;
+                    case "p1meter/l1_instant_power_usage":
+                        _consumptionData.Data.Add(ConsumptionKeys.L1InstantPowerUsage, consumptionValue);
+                        break;
+                    case "p1meter/l2_instant_power_usage":
+                        _consumptionData.Data.Add(ConsumptionKeys.L2InstantPowerUsage, consumptionValue);
+                        break;
+                    case "p1meter/l3_instant_power_usage":
+                        _consumptionData.Data.Add(ConsumptionKeys.L3InstantPowerUsage, consumptionValue);
+                        break;
+                    case "p1meter/l1_instant_power_current":
+                        _consumptionData.Data.Add(ConsumptionKeys.L1InstantPowerCurrent, consumptionValue);
+                        break;
+                    case "p1meter/l2_instant_power_current":
+                        _consumptionData.Data.Add(ConsumptionKeys.L2InstantPowerCurrent, consumptionValue);
+                        break;
+                    case "p1meter/l3_instant_power_current":
+                        _consumptionData.Data.Add(ConsumptionKeys.L3InstantPowerCurrent, consumptionValue);
+                        break;
+                    case "p1meter/l1_voltage":
+                        _consumptionData.Data.Add(ConsumptionKeys.L1Voltage, consumptionValue);
+                        break;
+                    case "p1meter/l2_voltage":
+                        _consumptionData.Data.Add(ConsumptionKeys.L2Voltage, consumptionValue);
+                        break;
+                    case "p1meter/l3_voltage":
+                        _consumptionData.Data.Add(ConsumptionKeys.L3Voltage, consumptionValue);
+                        break;
+                    case "p1meter/cumulative_power_consumption":
+                        _consumptionData.Data.Add(ConsumptionKeys.CumulativePowerConsumption, consumptionValue);
+                        break;
+                    case "p1meter/cumulative_power_yield":
+                        _consumptionData.Data.Add(ConsumptionKeys.CumulativePowerYield, consumptionValue);
                         break;
                     default:
                         _logger.LogInformation($"{_serviceName}:: Received message {payload} in {applicationMessage.Topic}");
                         break;
+                }
+
+                if (_consumptionData?.Data.Count == 13)
+                {
+                    _logger.LogInformation($"{_serviceName}:: Sending {_consumptionData.Timestamp} updated message to broadcastConsumptionData");
+                    await _consumptionHub.Clients.All.SendAsync("broadcastConsumptionData", _consumptionData);
+                    _consumptionData = null;
                 }
             }
         }

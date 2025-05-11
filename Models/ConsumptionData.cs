@@ -2,8 +2,8 @@
 {
     public class ConsumptionData
     {
-        public DateTimeOffset Timestamp { get; set; }
-        public required double Value { get; set; }
-        public required string Unit { get; set; }
+        public DateTime Timestamp { get; set; }
+
+        public required Dictionary<ConsumptionKeys, double> Data { get; set; }
     }
 }
