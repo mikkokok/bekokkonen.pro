@@ -8,7 +8,6 @@ namespace bekokkonen.pro.Routes.Hubs
         public async Task SendConsumptionData(ConsumptionData payload)
         {
             await Clients.All.SendAsync("broadcastConsumptionData", payload);
-
         }
     }
 }

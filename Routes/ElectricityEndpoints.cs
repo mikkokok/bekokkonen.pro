@@ -12,17 +12,8 @@ namespace bekokkonen.pro.Routes.MapEndpoints
         public static void MapElectricityEndpoints(this WebApplication app)
         {
             var scopeRequiredByApi = app.Configuration["AzureAd:Scopes"] ?? "";
-            var electricityItems = app.MapGroup("/api/electricity").WithTags("ElectricityEndpoints");
-            electricityItems.MapGet("/", (HttpContext httpContext) =>
-            {
-                httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
-                return TypedResults.Ok("jees");
-            })
-            .WithName("GetAllElectricityEndpoints")
-            .WithOpenApi()
-            .RequireAuthorization();
-
-            electricityItems.MapGet("/task", ([FromServices] MQClient mqClient, HttpContext httpContext) =>
+            var electricityEndpoints = app.MapGroup("/api/electricity").WithTags("ElectricityEndpoints");
+            electricityEndpoints.MapGet("/task", ([FromServices] MQClient mqClient, HttpContext httpContext) =>
             {
                 httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
                 return TypedResults.Ok(mqClient.Initialization.Exception?.Message);
@@ -30,10 +21,15 @@ namespace bekokkonen.pro.Routes.MapEndpoints
             .WithName("GetMQClientTask")
             .WithOpenApi()
             .RequireAuthorization();
-
-            electricityItems.MapHub<ConsumptionHub>("/consumption")
-                .WithOpenApi()
-                .RequireAuthorization();
+            electricityEndpoints.MapGet("/consumption/history", ([FromServices] MQClient mqClient, HttpContext httpContext) =>
+            {
+                httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
+                var historyData = mqClient.GetConsumptionDataHistory();
+                return TypedResults.Ok(historyData);
+            }).RequireAuthorization();
+            electricityEndpoints.MapHub<ConsumptionHub>("/consumption")
+            .WithOpenApi()
+            .RequireAuthorization();
         }
     }
 }

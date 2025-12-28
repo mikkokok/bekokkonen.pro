@@ -18,6 +18,8 @@ namespace bekokkonen.pro.MQ.Implementation
         private GlobalConfig.RabbitMQ _mqConfig;
         private IHubContext<ConsumptionHub> _consumptionHub;
         private ConsumptionData? _consumptionData;
+        private List<ConsumptionData> _consumptionDataHistoryList = [];
+
 
         public MQClient(ILogger<MQClient> logger, IHubContext<ConsumptionHub> electricityHub)
         {
@@ -29,6 +31,11 @@ namespace bekokkonen.pro.MQ.Implementation
         }
 
         public Task Initialization { get; private set; }
+
+        public List<ConsumptionData> GetConsumptionDataHistory()
+        {
+            return _consumptionDataHistoryList;
+        }
 
         private async Task StartMqttClient()
         {
@@ -117,9 +124,15 @@ namespace bekokkonen.pro.MQ.Implementation
                 {
                     _logger.LogInformation($"{_serviceName}:: Sending {_consumptionData.Timestamp} updated message to broadcastConsumptionData");
                     await _consumptionHub.Clients.All.SendAsync("broadcastConsumptionData", _consumptionData);
+                    AddConsumptionHistory(_consumptionData);
                     _consumptionData = null;
                 }
             }
+        }
+        private void AddConsumptionHistory(ConsumptionData consumptionData)
+        {
+            _consumptionDataHistoryList.Add(consumptionData);
+            _consumptionDataHistoryList.RemoveAll(cd => cd.Timestamp < DateTime.Now.AddDays(-2));
         }
     }
 }
