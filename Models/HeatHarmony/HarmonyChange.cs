@@ -1,6 +1,4 @@
-﻿using static bekokkonen.pro.Routes.MapEndpoints.ApiMapper;
-
-namespace bekokkonen.pro.Models.HeatHarmony
+﻿namespace bekokkonen.pro.Models.HeatHarmony
 {
     public sealed class HarmonyChange
     {

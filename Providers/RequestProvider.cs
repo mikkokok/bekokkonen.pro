@@ -122,6 +122,29 @@ namespace bekokkonen.pro.Providers
             }
         }
 
+        public async Task<(int StatusCode, string? Content)> PostRawAsync<TRequest>(string clientName, string url, TRequest data)
+        {
+            var httpClient = _httpClientFactory.CreateClient(clientName);
+            try
+            {
+                PatchIfHeatHarmony(clientName, httpClient);
+                var requestContent = SerializeToJson(data);
+
+                using var response = await httpClient.PostAsync(url, requestContent);
+                var content = await response.Content.ReadAsStringAsync();
+                return ((int)response.StatusCode, string.IsNullOrWhiteSpace(content) ? null : content);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "{Timestamp} {ServiceName} {OperationId}:: Error sending raw POST request to {Url}",
+                    DateTime.Now, _serviceName, _operationId, url);
+                throw;
+            }
+        }
+
+
         public async Task<TResult?> GetAsync<TResult>(string clientName, string url)
         {
             var httpClient = _httpClientFactory.CreateClient(clientName);
