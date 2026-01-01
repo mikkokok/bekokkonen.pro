@@ -1,6 +1,6 @@
 ﻿namespace bekokkonen.pro.Models.HeatHarmony
 {
-    public sealed class EmOverrideStatus
+    public sealed class EmOverrideStatusResponse
     {
         #pragma warning disable IDE1006 // Naming Styles
         public EMOverrideMode OverrideMode { get; set; }

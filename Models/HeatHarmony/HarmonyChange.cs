@@ -20,6 +20,8 @@
         SetDefault,
         SetConservativeHeating,
         OverrideEnable,
-        SetTargetTemp
+        SetTargetTemp,
+        OilBurnerEnable,
+        OilBurnerDisable
     }
 }

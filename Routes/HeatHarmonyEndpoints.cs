@@ -1,9 +1,8 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Http.HttpResults;
-using bekokkonen.pro.Providers;
-using bekokkonen.pro.Global;
-using bekokkonen.pro.Models.HeatHarmony;
+﻿using bekokkonen.pro.Global;
 using bekokkonen.pro.Global.Config;
+using bekokkonen.pro.Models.HeatHarmony;
+using bekokkonen.pro.Providers;
+using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 
 namespace bekokkonen.pro.Routes.MapEndpoints
@@ -15,151 +14,213 @@ namespace bekokkonen.pro.Routes.MapEndpoints
             var heatHarmonyEndpoints = app.MapGroup("/api/heatharmony").WithTags("HeatHarmonyEndpoints");
             var heatHarmonyUrl = GlobalConfig.HeatHarmonyConfig!.BaseUrl;
 
-            heatHarmonyEndpoints.MapGet("/appstatus/ping", ([FromServices] IRequestProvider requestProvider) =>
+            static async Task<IResult> ProxyGetNullable<T>(IRequestProvider requestProvider, string clientName, string url)
             {
-                return requestProvider.GetAsync<PingResponse>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/appstatus/ping")
-                    .ContinueWith(task => task.Result is not null
-                        ? Results.Ok(task.Result)
-                        : Results.StatusCode(503));
-            }).WithName("GetAppHealthStatus")
-              .RequireAuthorization();
-            heatHarmonyEndpoints.MapGet("/appstatus/uptime", ([FromServices] IRequestProvider requestProvider) =>
-            {
-                return requestProvider.GetAsync<UptimeResponse>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/appstatus/uptime")
-                    .ContinueWith(task => task.Result is not null
-                        ? Results.Ok(task.Result)
-                        : Results.StatusCode(503));
-            }).WithName("GetAppUptime")
-            .RequireAuthorization();
+                var result = await requestProvider.GetAsync<T>(clientName, url);
+                return result is not null
+                    ? Results.Ok(result)
+                    : Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+            }
 
-            heatHarmonyEndpoints.MapGet("/em/latest", ([FromServices] IRequestProvider requestProvider) =>
-            {
-                return requestProvider.GetAsync<EmLatestResponse>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/em/latest")
-                    .ContinueWith(task => task.Result is not null
-                        ? Results.Ok(task.Result)
-                        : Results.StatusCode(503));
-            }).WithName("GetLatestEM")
-            .RequireAuthorization();
-
-            heatHarmonyEndpoints.MapGet("/em/changes", ([FromServices] IRequestProvider requestProvider) =>
-            {
-                return requestProvider.GetAsync<IEnumerable<HarmonyChange>>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/em/changes")
-                    .ContinueWith(task => task.Result is not null
-                        ? Results.Ok(task.Result)
-                        : Results.StatusCode(503));
-            }).WithName("GetEMChanges")
-            .RequireAuthorization();
-
-            heatHarmonyEndpoints.MapPost("/em/enable", async ([FromServices] IRequestProvider requestProvider) =>
+            static async Task<IResult> ProxyGet<T>(IRequestProvider requestProvider, string clientName, string url)
             {
                 try
                 {
-                    await requestProvider.PostAsync(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/em/enable");
-                    return Results.Ok();
+                    var result = await requestProvider.GetAsync<T>(clientName, url);
+                    return Results.Ok(result);
                 }
-                catch (Exception ex)
+                catch
                 {
-                    app.Logger.LogError(ex, "Error occurred while enabling EM water heating");
-                    return Results.StatusCode(500);
+                    return Results.StatusCode(StatusCodes.Status500InternalServerError);
                 }
-            }).WithName("EnableEMWaterHeating")
-            .RequireAuthorization();
+            }
 
-            heatHarmonyEndpoints.MapPost("/em/disable", async ([FromServices] IRequestProvider requestProvider) =>
-            {
-                try
-                {
-                    await requestProvider.PostAsync(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/em/disable");
-                    return Results.Ok();
-                }
-                catch (Exception ex)
-                {
-                    app.Logger.LogError(ex, "Error occurred while disabling EM water heating");
-                    return Results.StatusCode(500);
-                }
-            }).WithName("DisableEMWaterHeating")
-            .RequireAuthorization();
+            heatHarmonyEndpoints.MapGet("/appstatus/ping",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGetNullable<PingResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/appstatus/ping"))
+                .WithName("GetAppHealthStatus")
+                .Produces<PingResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status503ServiceUnavailable)
+                .RequireAuthorization();
 
-            heatHarmonyEndpoints.MapDelete("/em/override/delete", async ([FromServices] IRequestProvider requestProvider) =>
-            {
-                try
-                {
-                    await requestProvider.DeleteAsync(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/em/delete");
-                    return Results.Ok();
-                }
-                catch (Exception ex)
-                {
-                    app.Logger.LogError(ex, "Error occurred while removing EM water heating override");
-                    return Results.StatusCode(500);
-                }
-            })
-                .WithName("ClearEMOverride");
+            heatHarmonyEndpoints.MapGet("/appstatus/uptime",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGetNullable<UptimeResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/appstatus/uptime"))
+                .WithName("GetAppUptime")
+                .Produces<UptimeResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status503ServiceUnavailable)
+                .RequireAuthorization();
 
-            heatHarmonyEndpoints.MapPost("/em/override/enable/{hours:int?}", async ([FromServices] IRequestProvider requestProvider, int? hours) =>
-            {
-                try
+            heatHarmonyEndpoints.MapGet("/em/latest",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGetNullable<EmLatestResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/em/latest"))
+                .WithName("GetLatestEM")
+                .Produces<EmLatestResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status503ServiceUnavailable)
+                .RequireAuthorization();
+
+            heatHarmonyEndpoints.MapGet("/em/changes",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGetNullable<EmChangesResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/em/changes"))
+                .WithName("GetEMChanges")
+                .Produces<EmChangesResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status503ServiceUnavailable)
+                .RequireAuthorization();
+
+            heatHarmonyEndpoints.MapPost("/em/enable",
+                async ([FromServices] IRequestProvider requestProvider) =>
                 {
-                    var response = await requestProvider.PostAsync<EmOverrideGetResponse>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/em/override/enable/{hours}");
-                    return Results.Ok(response);
-                }
-                catch (Exception ex)
+                    try
+                    {
+                        await requestProvider.PostAsync(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/em/enable");
+                        return Results.Accepted();
+                    }
+                    catch (Exception ex)
+                    {
+                        app.Logger.LogError(ex, "Error occurred while enabling EM water heating");
+                        return Results.StatusCode(StatusCodes.Status500InternalServerError);
+                    }
+                })
+                .WithName("EnableEMWaterHeating")
+                .Produces(StatusCodes.Status202Accepted)
+                .Produces(StatusCodes.Status500InternalServerError)
+                .RequireAuthorization();
+
+            heatHarmonyEndpoints.MapPost("/em/disable",
+                async ([FromServices] IRequestProvider requestProvider) =>
                 {
-                    app.Logger.LogError(ex, "Error occurred while overriding (enable) EM water heating");
-                    return Results.StatusCode(500);
-                }
-            }).WithName("OverrideEMEnableWaterHeating")
-            .RequireAuthorization();
+                    try
+                    {
+                        await requestProvider.PostAsync(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/em/disable");
+                        return Results.Accepted();
+                    }
+                    catch (Exception ex)
+                    {
+                        app.Logger.LogError(ex, "Error occurred while disabling EM water heating");
+                        return Results.StatusCode(StatusCodes.Status500InternalServerError);
+                    }
+                })
+                .WithName("DisableEMWaterHeating")
+                .Produces(StatusCodes.Status202Accepted)
+                .Produces(StatusCodes.Status500InternalServerError)
+                .RequireAuthorization();
 
-            heatHarmonyEndpoints.MapPost("/em/override/disable/{hours:int?}", async ([FromServices] IRequestProvider requestProvider, int? hours) =>
-            {
-                try
+            heatHarmonyEndpoints.MapDelete("/em/override/delete",
+                async ([FromServices] IRequestProvider requestProvider) =>
                 {
-                    var response = await requestProvider.PostAsync<EmOverrideGetResponse>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/em/override/disable/{hours}");
-                    return Results.Ok(response);
-                }
-                catch (Exception ex)
+                    try
+                    {
+                        await requestProvider.DeleteAsync<object>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/em/override/delete");
+                        return Results.Ok();
+                    }
+                    catch (Exception ex)
+                    {
+                        app.Logger.LogError(ex, "Error occurred while removing EM water heating override");
+                        return Results.StatusCode(StatusCodes.Status500InternalServerError);
+                    }
+                })
+                .WithName("ClearEMOverride")
+                .Produces(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status500InternalServerError)
+                .RequireAuthorization();
+
+            heatHarmonyEndpoints.MapPost("/em/override/enable/{hours:int}",
+                async ([FromServices] IRequestProvider requestProvider, int hours) =>
                 {
-                    app.Logger.LogError(ex, "Error occurred while overriding (disable) EM water heating");
-                    return Results.StatusCode(500);
-                }
-            }).WithName("OverrideEMDisableWaterHeating")
-            .RequireAuthorization();
+                    try
+                    {
+                        var response = await requestProvider.PostAsync<EmOverrideResultResponse>(
+                            HttpClientConst.HeatHarmony,
+                            $"{heatHarmonyUrl}/em/override/enable/{hours}");
+                        return Results.Accepted(null, response);
+                    }
+                    catch (Exception ex)
+                    {
+                        app.Logger.LogError(ex, "Error occurred while overriding (enable) EM water heating");
+                        return Results.StatusCode(StatusCodes.Status500InternalServerError);
+                    }
+                })
+                .WithName("OverrideEMEnableWaterHeating")
+                .Produces<EmOverrideResultResponse>(StatusCodes.Status202Accepted)
+                .Produces(StatusCodes.Status500InternalServerError)
+                .RequireAuthorization();
 
-            heatHarmonyEndpoints.MapGet("/em/override/status", async ([FromServices] IRequestProvider requestProvider) =>
-            {
-                return await requestProvider.GetAsync<EmOverrideStatus>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/em/override/status")
-                .ContinueWith(task => task.Result is not null
-                ? Results.Ok(task.Result)
-                : Results.StatusCode(503));
-            }).WithName("GetEMOverrideStatus")
-            .RequireAuthorization();
+            heatHarmonyEndpoints.MapPost("/em/override/disable/{hours:int}",
+                async ([FromServices] IRequestProvider requestProvider, int hours) =>
+                {
+                    try
+                    {
+                        var response = await requestProvider.PostAsync<EmOverrideResultResponse>(
+                            HttpClientConst.HeatHarmony,
+                            $"{heatHarmonyUrl}/em/override/disable/{hours}");
+                        return Results.Accepted(null, response);
+                    }
+                    catch (Exception ex)
+                    {
+                        app.Logger.LogError(ex, "Error occurred while overriding (disable) EM water heating");
+                        return Results.StatusCode(StatusCodes.Status500InternalServerError);
+                    }
+                })
+                .WithName("OverrideEMDisableWaterHeating")
+                .Produces<EmOverrideResultResponse>(StatusCodes.Status202Accepted)
+                .Produces(StatusCodes.Status500InternalServerError)
+                .RequireAuthorization();
 
-            heatHarmonyEndpoints.MapGet("/heatautomation/status", async ([FromServices] IRequestProvider requestProvider) =>
-            {
-                return await requestProvider.GetAsync<HeatAutomationStatusResponse>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/heatautomation/status")
-                    .ContinueWith(task => task.Result is not null
-                        ? Results.Ok(task.Result)
-                        : Results.StatusCode(503));
-            }).WithName("GetHeatAutomationStatus")
-            .RequireAuthorization();
+            heatHarmonyEndpoints.MapGet("/em/override/status",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGetNullable<EmOverrideStatusResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/em/override/status"))
+                .WithName("GetEMOverrideStatus")
+                .Produces<EmOverrideStatusResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status503ServiceUnavailable)
+                .RequireAuthorization();
 
-            heatHarmonyEndpoints.MapGet("/heatautomation/tasks", async ([FromServices] IRequestProvider requestProvider) =>
-            {
-                return await requestProvider.GetAsync<HeatAutomationTasksResponse>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/heatautomation/tasks")
-                    .ContinueWith(task => task.Result is not null
-                        ? Results.Ok(task.Result)
-                        : Results.StatusCode(503));
-            }).WithName("GetHeatAutomationTaskStatus")
-            .RequireAuthorization();
+            heatHarmonyEndpoints.MapGet("/heatautomation/status",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGetNullable<HeatAutomationStatusResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/heatautomation/status"))
+                .WithName("GetHeatAutomationStatus")
+                .Produces<HeatAutomationStatusResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status503ServiceUnavailable)
+                .RequireAuthorization();
 
-            heatHarmonyEndpoints.MapGet("/heatautomation/override", async ([FromServices] IRequestProvider requestProvider) =>
-            {
-                return await requestProvider.GetAsync<HeatAutomationOverrideResponse>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/heatautomation/override")
-                    .ContinueWith(task => task.Result is not null
-                        ? Results.Ok(task.Result)
-                        : Results.StatusCode(503));
-            }).WithName("GetOverrideStatus")
-            .RequireAuthorization();
+            heatHarmonyEndpoints.MapGet("/heatautomation/tasks",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGetNullable<HeatAutomationTasksResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/heatautomation/tasks"))
+                .WithName("GetHeatAutomationTaskStatus")
+                .Produces<HeatAutomationTasksResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status503ServiceUnavailable)
+                .RequireAuthorization();
+
+            heatHarmonyEndpoints.MapGet("/heatautomation/override",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGetNullable<HeatAutomationOverrideResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/heatautomation/override"))
+                .WithName("GetOverrideStatus")
+                .Produces<HeatAutomationOverrideResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status503ServiceUnavailable)
+                .RequireAuthorization();
 
             heatHarmonyEndpoints.MapPost("/heatautomation/override",
                 async ([FromServices] IRequestProvider requestProvider, TemperatureOverride body) =>
@@ -198,231 +259,175 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                     }
                 })
                 .WithName("SetOverrideTemp")
+                .Produces<HeatAutomationOverrideResponse>(StatusCodes.Status202Accepted)
+                .Produces<HeatAutomationErrorResponse>(StatusCodes.Status400BadRequest)
+                .Produces<HeatAutomationErrorResponse>(StatusCodes.Status409Conflict)
+                .Produces(StatusCodes.Status500InternalServerError)
                 .RequireAuthorization();
 
-            heatHarmonyEndpoints.MapDelete("/heatautomation/override", async ([FromServices] IRequestProvider requestProvider) =>
-            {
-                try
+            heatHarmonyEndpoints.MapDelete("/heatautomation/override",
+                async ([FromServices] IRequestProvider requestProvider) =>
                 {
-                    var response = await requestProvider.DeleteAsync<HeatAutomationRemoveOverrideResponse>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/heatautomation/override");
-                    return Results.Ok(response);
-                }
-                catch (Exception ex)
-                {
-                    app.Logger.LogError(ex, "Error occurred while overriding (disable) EM water heating");
-                    return Results.StatusCode(500);
-                }
-            })
-            .WithName("CancelOverrideTemp")
-            .RequireAuthorization();
+                    try
+                    {
+                        var response = await requestProvider.DeleteAsync<HeatAutomationRemoveOverrideResponse>(
+                            HttpClientConst.HeatHarmony,
+                            $"{heatHarmonyUrl}/heatautomation/override");
+                        return Results.Ok(response);
+                    }
+                    catch (Exception ex)
+                    {
+                        app.Logger.LogError(ex, "Error occurred while cancelling HeatAutomation override");
+                        return Results.StatusCode(StatusCodes.Status500InternalServerError);
+                    }
+                })
+                .WithName("CancelOverrideTemp")
+                .Produces<HeatAutomationRemoveOverrideResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status500InternalServerError)
+                .RequireAuthorization();
 
-            heatHarmonyEndpoints.MapGet("/heishamon/latest", async ([FromServices] IRequestProvider requestProvider) =>
-            {
-                try
-                {
-                    var response = await requestProvider.GetAsync<object>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/heishamon/latest");
-                    return Results.Ok(response);
-                }
-                catch (Exception ex)
-                {
-                    app.Logger.LogError(ex, "Error occurred while fetching latest HeishaMon readings");
-                    return Results.StatusCode(500);
-                }
-            })
-            .WithName("GetLatestHeishaMonReadings")
-            .RequireAuthorization();
+            heatHarmonyEndpoints.MapGet("/heishamon/latest",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGet<HeishaMonLatestResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/heishamon/latest"))
+                .WithName("GetLatestHeishaMonReadings")
+                .Produces<HeishaMonLatestResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status500InternalServerError)
+                .RequireAuthorization();
 
-            heatHarmonyEndpoints.MapGet("/heishamon/task", async ([FromServices] IRequestProvider requestProvider) =>
-            {
-                try
-                {
-                    var response = await requestProvider.GetAsync<object>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/heishamon/task");
-                    return Results.Ok(response);
-                }
-                catch (Exception ex)
-                {
-                    app.Logger.LogError(ex, "Error occurred while fetching HeishaMon task");
-                    return Results.StatusCode(500);
-                }
-            })
-            .WithName("GetHeishaMonProviderTask")
-            .RequireAuthorization();
+            heatHarmonyEndpoints.MapGet("/heishamon/task",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGet<HeishaMonTaskResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/heishamon/task"))
+                .WithName("GetHeishaMonProviderTask")
+                .Produces<HeishaMonTaskResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status500InternalServerError)
+                .RequireAuthorization();
 
-            heatHarmonyEndpoints.MapGet("/heishamon/status", async ([FromServices] IRequestProvider requestProvider) =>
-            {
-                try
-                {
-                    var response = await requestProvider.GetAsync<object>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/heishamon/status");
-                    return Results.Ok(response);
-                }
-                catch (Exception ex)
-                {
-                    app.Logger.LogError(ex, "Error occurred while fetching HeishaMon status");
-                    return Results.StatusCode(500);
-                }
-            })
-            .WithName("GetHeishaMonProviderStatus")
-            .RequireAuthorization();
+            heatHarmonyEndpoints.MapGet("/heishamon/status",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGet<HeishaMonStatusResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/heishamon/status"))
+                .WithName("GetHeishaMonProviderStatus")
+                .Produces<HeishaMonStatusResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status500InternalServerError)
+                .RequireAuthorization();
 
-            heatHarmonyEndpoints.MapGet("/ouman/latest", async ([FromServices] IRequestProvider requestProvider) =>
-            {
-                try
-                {
-                    var response = await requestProvider.GetAsync<object>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/ouman/latest");
-                    return Results.Ok(response);
-                }
-                catch (Exception ex)
-                {
-                    app.Logger.LogError(ex, "Error occurred while fetching latest Ouman readings");
-                    return Results.StatusCode(500);
-                }
-            })
-            .WithName("GetLatestOumanReadings")
-            .RequireAuthorization();
+            heatHarmonyEndpoints.MapGet("/ouman/latest",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGet<OumanLatestResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/ouman/latest"))
+                .WithName("GetLatestOumanReadings")
+                .Produces<OumanLatestResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status500InternalServerError)
+                .RequireAuthorization();
 
-            heatHarmonyEndpoints.MapGet("/ouman/status", async ([FromServices] IRequestProvider requestProvider) =>
-            {
-                try
-                {
-                    var response = await requestProvider.GetAsync<object>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/ouman/status");
-                    return Results.Ok(response);
-                }
-                catch (Exception ex)
-                {
-                    app.Logger.LogError(ex, "Error occurred while fetching Ouman status");
-                    return Results.StatusCode(500);
-                }
-            })
-            .WithName("GetOumanStatus")
-            .RequireAuthorization();
+            heatHarmonyEndpoints.MapGet("/ouman/status",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGet<OumanStatusResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/ouman/status"))
+                .WithName("GetOumanStatus")
+                .Produces<OumanStatusResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status500InternalServerError)
+                .RequireAuthorization();
 
-            heatHarmonyEndpoints.MapGet("/ouman/task", async ([FromServices] IRequestProvider requestProvider) =>
-            {
-                try
-                {
-                    var response = await requestProvider.GetAsync<object>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/ouman/task");
-                    return Results.Ok(response);
-                }
-                catch (Exception ex)
-                {
-                    app.Logger.LogError(ex, "Error occurred while fetching Ouman task");
-                    return Results.StatusCode(500);
-                }
-            })
-            .WithName("GetOumanProviderTask")
-            .RequireAuthorization();
+            heatHarmonyEndpoints.MapGet("/ouman/task",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGet<OumanTaskResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/ouman/task"))
+                .WithName("GetOumanProviderTask")
+                .Produces<OumanTaskResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status500InternalServerError)
+                .RequireAuthorization();
 
-            heatHarmonyEndpoints.MapGet("/prices/today", async ([FromServices] IRequestProvider requestProvider) =>
-            {
-                try
-                {
-                    var response = await requestProvider.GetAsync<object>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/prices/today");
-                    return Results.Ok(response);
-                }
-                catch (Exception ex)
-                {
-                    app.Logger.LogError(ex, "Error occurred while fetching today's prices");
-                    return Results.StatusCode(500);
-                }
-            })
-            .WithName("GetTodayPrices")
-            .RequireAuthorization();
+            heatHarmonyEndpoints.MapGet("/prices/today",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGet<PriceTodayResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/prices/today"))
+                .WithName("GetTodayPrices")
+                .Produces<PriceTodayResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status500InternalServerError)
+                .RequireAuthorization();
 
-            heatHarmonyEndpoints.MapGet("/prices/tomorrow", async ([FromServices] IRequestProvider requestProvider) =>
-            {
-                try
-                {
-                    var response = await requestProvider.GetAsync<object>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/prices/tomorrow");
-                    return Results.Ok(response);
-                }
-                catch (Exception ex)
-                {
-                    app.Logger.LogError(ex, "Error occurred while fetching tomorrow's prices");
-                    return Results.StatusCode(500);
-                }
-            })
-            .WithName("GetTomorrowPrices")
-            .RequireAuthorization();
+            heatHarmonyEndpoints.MapGet("/prices/tomorrow",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGet<PriceTomorrowResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/prices/tomorrow"))
+                .WithName("GetTomorrowPrices")
+                .Produces<PriceTomorrowResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status500InternalServerError)
+                .RequireAuthorization();
 
-            heatHarmonyEndpoints.MapGet("/prices/lowperiods/today", async ([FromServices] IRequestProvider requestProvider) =>
-            {
-                try
-                {
-                    var response = await requestProvider.GetAsync<object>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/prices/lowperiods/today");
-                    return Results.Ok(response);
-                }
-                catch (Exception ex)
-                {
-                    app.Logger.LogError(ex, "Error occurred while fetching today's low periods");
-                    return Results.StatusCode(500);
-                }
-            })
-            .WithName("GetTodayLowPeriods")
-            .RequireAuthorization();
+            heatHarmonyEndpoints.MapGet("/prices/lowperiods/today",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGet<TodayLowPeriodsResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/prices/lowperiods/today"))
+                .WithName("GetTodayLowPeriods")
+                .Produces<TodayLowPeriodsResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status500InternalServerError)
+                .RequireAuthorization();
 
-            heatHarmonyEndpoints.MapGet("/prices/lowperiods/all", async ([FromServices] IRequestProvider requestProvider) =>
-            {
-                try
-                {
-                    var response = await requestProvider.GetAsync<object>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/prices/lowperiods/all");
-                    return Results.Ok(response);
-                }
-                catch (Exception ex)
-                {
-                    app.Logger.LogError(ex, "Error occurred while fetching all low periods");
-                    return Results.StatusCode(500);
-                }
-            })
-            .WithName("GetAllLowPeriods")
-            .RequireAuthorization();
+            heatHarmonyEndpoints.MapGet("/prices/lowperiods/all",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGet<AllLowPeriodsResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/prices/lowperiods/all"))
+                .WithName("GetAllLowPeriods")
+                .Produces<AllLowPeriodsResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status500InternalServerError)
+                .RequireAuthorization();
 
-            heatHarmonyEndpoints.MapGet("/prices/nightperiod", async ([FromServices] IRequestProvider requestProvider) =>
-            {
-                try
-                {
-                    var response = await requestProvider.GetAsync<object>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/prices/nightperiod");
-                    return Results.Ok(response);
-                }
-                catch (Exception ex)
-                {
-                    app.Logger.LogError(ex, "Error occurred while fetching night period prices");
-                    return Results.StatusCode(500);
-                }
-            })
-            .WithName("GetNightPeriod")
-            .RequireAuthorization();
+            heatHarmonyEndpoints.MapGet("/prices/nightperiod",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGet<NightPeriodResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/prices/nightperiod"))
+                .WithName("GetNightPeriod")
+                .Produces<NightPeriodResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status500InternalServerError)
+                .RequireAuthorization();
 
-            heatHarmonyEndpoints.MapGet("/trv/latest", async ([FromServices] IRequestProvider requestProvider) =>
-            {
-                try
-                {
-                    var response = await requestProvider.GetAsync<object>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/trv/latest");
-                    return Results.Ok(response);
-                }
-                catch (Exception ex)
-                {
-                    app.Logger.LogError(ex, "Error occurred while fetching latest TRV readings");
-                    return Results.StatusCode(500);
-                }
-            })
-            .WithName("GetLatestTRVReadings")
-            .RequireAuthorization();
+            heatHarmonyEndpoints.MapGet("/trv/latest",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGet<TRVLatestResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/trv/latest"))
+                .WithName("GetLatestTRVReadings")
+                .Produces<TRVLatestResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status500InternalServerError)
+                .RequireAuthorization();
 
-            heatHarmonyEndpoints.MapGet("/trv/task", async ([FromServices] IRequestProvider requestProvider) =>
-            {
-                try
-                {
-                    var response = await requestProvider.GetAsync<object>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/trv/task");
-                    return Results.Ok(response);
-                }
-                catch (Exception ex)
-                {
-                    app.Logger.LogError(ex, "Error occurred while fetching TRV provider task");
-                    return Results.StatusCode(500);
-                }
-            })
-            .WithName("GetTRVProviderTask")
-            .RequireAuthorization();
+            heatHarmonyEndpoints.MapGet("/trv/task",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGet<TRVTaskResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/trv/task"))
+                .WithName("GetTRVProviderTask")
+                .Produces<TRVTaskResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status500InternalServerError)
+                .RequireAuthorization();
         }
     }
 }
