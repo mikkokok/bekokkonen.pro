@@ -18,6 +18,8 @@ namespace bekokkonen.pro.MQ.Implementation
         private GlobalConfig.RabbitMQ _mqConfig;
         private IHubContext<ConsumptionHub> _consumptionHub;
         private ConsumptionData? _consumptionData;
+        private List<ConsumptionData> _consumptionDataHistoryList = [];
+
 
         public MQClient(ILogger<MQClient> logger, IHubContext<ConsumptionHub> electricityHub)
         {
@@ -30,30 +32,44 @@ namespace bekokkonen.pro.MQ.Implementation
 
         public Task Initialization { get; private set; }
 
+        public List<ConsumptionData> GetConsumptionDataHistory()
+        {
+            return _consumptionDataHistoryList;
+        }
+
         private async Task StartMqttClient()
         {
-            _logger.LogInformation($"{_serviceName}:: Start MQtt client");
+            _logger.LogInformation("{ServiceName}:: Start MQtt client", _serviceName);
             try
             {
                 var mqttClient = new MqttClientFactory().CreateMqttClient();
                 mqttClient.ApplicationMessageReceivedAsync += m => HandleMessage(m.ApplicationMessage);
+
                 var mqttClientOptions = new MqttClientOptionsBuilder()
                     .WithTcpServer(_mqConfig.mqttServer, 1883)
                     .WithClientId(_clientId)
                     .WithCredentials(_mqConfig.mqttUser, _mqConfig.mqttPassword)
                     .WithCleanSession()
                     .Build();
+
                 var response = await mqttClient.ConnectAsync(mqttClientOptions, CancellationToken.None);
 
                 var subResult = await mqttClient.SubscribeAsync(_mqConfig.mqttTopic);
-                subResult.Items.ToList().ForEach(s => _logger.LogInformation($"{_serviceName}:: Subscribed to '{s.TopicFilter.Topic}' with '{s.ResultCode}' "));
+                subResult.Items
+                    .ToList()
+                    .ForEach(s => _logger.LogInformation(
+                        "{ServiceName}:: Subscribed to '{Topic}' with '{ResultCode}'",
+                        _serviceName,
+                        s.TopicFilter.Topic,
+                        s.ResultCode));
             }
             catch (Exception ex)
             {
-                _logger.LogError($"{_serviceName}:: MQtt client error {ex.Message}");
+                _logger.LogError(ex, "{ServiceName}:: MQtt client error {ErrorMessage}", _serviceName, ex.Message);
                 throw;
             }
-            _logger.LogInformation($"{_serviceName}:: MQtt client connected successfully");
+
+            _logger.LogInformation("{ServiceName}:: MQtt client connected successfully", _serviceName);
         }
 
         private async Task HandleMessage(MqttApplicationMessage applicationMessage)
@@ -109,17 +125,32 @@ namespace bekokkonen.pro.MQ.Implementation
                         _consumptionData.Data.Add(ConsumptionKeys.CumulativePowerYield, consumptionValue);
                         break;
                     default:
-                        _logger.LogInformation($"{_serviceName}:: Received message {payload} in {applicationMessage.Topic}");
+                        _logger.LogInformation(
+                            "{ServiceName}:: Received message {Payload} in {Topic}",
+                            _serviceName,
+                            payload,
+                            applicationMessage.Topic);
                         break;
                 }
 
                 if (_consumptionData?.Data.Count == 13)
                 {
-                    _logger.LogInformation($"{_serviceName}:: Sending {_consumptionData.Timestamp} updated message to broadcastConsumptionData");
+                    _logger.LogInformation(
+                        "{ServiceName}:: Sending {Timestamp} updated message to broadcastConsumptionData",
+                        _serviceName,
+                        _consumptionData.Timestamp);
+
                     await _consumptionHub.Clients.All.SendAsync("broadcastConsumptionData", _consumptionData);
+                    AddConsumptionHistory(_consumptionData);
                     _consumptionData = null;
                 }
             }
+        }
+
+        private void AddConsumptionHistory(ConsumptionData consumptionData)
+        {
+            _consumptionDataHistoryList.Add(consumptionData);
+            _consumptionDataHistoryList.RemoveAll(cd => cd.Timestamp < DateTime.Now.AddDays(-2));
         }
     }
 }

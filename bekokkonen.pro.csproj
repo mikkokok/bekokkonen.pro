@@ -21,7 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Routes\Operations\" />
+    <Folder Include="DTO\" />
   </ItemGroup>
 
 </Project>

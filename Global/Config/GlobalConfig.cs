@@ -4,6 +4,7 @@
     {
         public static ApiDocument? ApiDocumentConfig { get; set; }
         public static RabbitMQ? RabbitMQConfig { get; set; }
+        public static HeatHarmony? HeatHarmonyConfig { get; set; }
 
         public class ApiDocument
         {
@@ -17,6 +18,11 @@
             public required string mqttUser { get; set; }
             public required string mqttPassword { get; set; }
             public required string mqttTopic { get; set; }
+        }
+        public class HeatHarmony
+        {
+            public required string ApiKey { get; set; }
+            public required string BaseUrl { get; set; }
         }
     }
 }

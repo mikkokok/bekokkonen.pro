@@ -1,7 +1,10 @@
 using bekokkonen.pro.Global.Config;
+using bekokkonen.pro.MQ;
 using bekokkonen.pro.MQ.Implementation;
+using bekokkonen.pro.Providers;
 using bekokkonen.pro.Routes.Hubs;
 using bekokkonen.pro.Routes.MapEndpoints;
+using bekokkonen.pro.Routes.Middlewares;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Identity.Abstractions;
@@ -17,6 +20,7 @@ namespace bekokkonen.pro
             var builder = WebApplication.CreateBuilder(args);
             GlobalConfig.ApiDocumentConfig = builder.Configuration.GetRequiredSection("ApiDocument").Get<GlobalConfig.ApiDocument>()!;
             GlobalConfig.RabbitMQConfig = builder.Configuration.GetRequiredSection("RabbitMQ").Get<GlobalConfig.RabbitMQ>()!;
+            GlobalConfig.HeatHarmonyConfig = builder.Configuration.GetRequiredSection("HeatHarmony").Get<GlobalConfig.HeatHarmony>()!;
 
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
@@ -44,12 +48,14 @@ namespace bekokkonen.pro
             builder.Services.AddSignalR();
             builder.Services.AddSingleton<ConsumptionHub>();
             builder.Services.AddSingleton<MQClient>();
+            builder.Services.AddHostedService<MQWorker>();
+            builder.Services.AddTransient<IRequestProvider, RequestProvider>();
 
             builder.Services.AddCors(options =>
             {
                 options.AddDefaultPolicy(policy =>
                 {
-                    policy.WithOrigins(["http://localhost:5173", "https://kokkonen.pro:443", "http://192.168.1.38:5173"])
+                    policy.WithOrigins("http://localhost:5173", "https://kokkonen.pro", "http://192.168.1.38:5173")
                           .WithMethods("GET")
                           .AllowAnyHeader()
                           .AllowCredentials();
@@ -71,8 +77,10 @@ namespace bekokkonen.pro
 
             app.UseRouting();
             app.UseAuthorization();
+            app.UseMiddleware<ApiVersionHeaderMiddleware>();
             app.MapPingEndpoints();
             app.MapElectricityEndpoints();
+            app.MapHeatHarmonyEndpoints();
 
             app.Run();
         }
