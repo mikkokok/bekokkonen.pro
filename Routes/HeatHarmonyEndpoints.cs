@@ -43,8 +43,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                         $"{heatHarmonyUrl}/appstatus/ping"))
                 .WithName("GetAppHealthStatus")
                 .Produces<PingResponse>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status503ServiceUnavailable)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status503ServiceUnavailable);
 
             heatHarmonyEndpoints.MapGet("/appstatus/uptime",
                 ([FromServices] IRequestProvider requestProvider) =>
@@ -54,8 +53,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                         $"{heatHarmonyUrl}/appstatus/uptime"))
                 .WithName("GetAppUptime")
                 .Produces<UptimeResponse>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status503ServiceUnavailable)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status503ServiceUnavailable);
 
             heatHarmonyEndpoints.MapGet("/em/latest",
                 ([FromServices] IRequestProvider requestProvider) =>
@@ -65,8 +63,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                         $"{heatHarmonyUrl}/em/latest"))
                 .WithName("GetLatestEM")
                 .Produces<EmLatestResponse>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status503ServiceUnavailable)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status503ServiceUnavailable);
 
             heatHarmonyEndpoints.MapGet("/em/changes",
                 ([FromServices] IRequestProvider requestProvider) =>
@@ -76,8 +73,27 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                         $"{heatHarmonyUrl}/em/changes"))
                 .WithName("GetEMChanges")
                 .Produces<EmChangesResponse>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status503ServiceUnavailable)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status503ServiceUnavailable);
+
+            heatHarmonyEndpoints.MapGet("/oilburner/changes",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGetNullable<EmChangesResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/oilburner/changes"))
+                .WithName("GetOilBurnerHistory")
+                .Produces<EmChangesResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status503ServiceUnavailable);
+
+            heatHarmonyEndpoints.MapGet("/oilburner/latest",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGetNullable<EmChangesResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/oilburner/latest"))
+                .WithName("GetOilBurnerLatest")
+                .Produces<OilBurnerLatestResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status503ServiceUnavailable);
 
             heatHarmonyEndpoints.MapPost("/em/enable",
                 async ([FromServices] IRequestProvider requestProvider) =>
@@ -95,8 +111,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                 })
                 .WithName("EnableEMWaterHeating")
                 .Produces(StatusCodes.Status202Accepted)
-                .Produces(StatusCodes.Status500InternalServerError)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status500InternalServerError);
 
             heatHarmonyEndpoints.MapPost("/em/disable",
                 async ([FromServices] IRequestProvider requestProvider) =>
@@ -114,8 +129,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                 })
                 .WithName("DisableEMWaterHeating")
                 .Produces(StatusCodes.Status202Accepted)
-                .Produces(StatusCodes.Status500InternalServerError)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status500InternalServerError);
 
             heatHarmonyEndpoints.MapDelete("/em/override/delete",
                 async ([FromServices] IRequestProvider requestProvider) =>
@@ -133,8 +147,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                 })
                 .WithName("ClearEMOverride")
                 .Produces(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status500InternalServerError)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status500InternalServerError);
 
             heatHarmonyEndpoints.MapPost("/em/override/enable/{hours:int}",
                 async ([FromServices] IRequestProvider requestProvider, int hours) =>
@@ -154,8 +167,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                 })
                 .WithName("OverrideEMEnableWaterHeating")
                 .Produces<EmOverrideResultResponse>(StatusCodes.Status202Accepted)
-                .Produces(StatusCodes.Status500InternalServerError)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status500InternalServerError);
 
             heatHarmonyEndpoints.MapPost("/em/override/disable/{hours:int}",
                 async ([FromServices] IRequestProvider requestProvider, int hours) =>
@@ -175,8 +187,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                 })
                 .WithName("OverrideEMDisableWaterHeating")
                 .Produces<EmOverrideResultResponse>(StatusCodes.Status202Accepted)
-                .Produces(StatusCodes.Status500InternalServerError)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status500InternalServerError);
 
             heatHarmonyEndpoints.MapGet("/em/override/status",
                 ([FromServices] IRequestProvider requestProvider) =>
@@ -186,8 +197,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                         $"{heatHarmonyUrl}/em/override/status"))
                 .WithName("GetEMOverrideStatus")
                 .Produces<EmOverrideStatusResponse>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status503ServiceUnavailable)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status503ServiceUnavailable);
 
             heatHarmonyEndpoints.MapGet("/heatautomation/status",
                 ([FromServices] IRequestProvider requestProvider) =>
@@ -197,8 +207,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                         $"{heatHarmonyUrl}/heatautomation/status"))
                 .WithName("GetHeatAutomationStatus")
                 .Produces<HeatAutomationStatusResponse>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status503ServiceUnavailable)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status503ServiceUnavailable);
 
             heatHarmonyEndpoints.MapGet("/heatautomation/tasks",
                 ([FromServices] IRequestProvider requestProvider) =>
@@ -208,8 +217,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                         $"{heatHarmonyUrl}/heatautomation/tasks"))
                 .WithName("GetHeatAutomationTaskStatus")
                 .Produces<HeatAutomationTasksResponse>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status503ServiceUnavailable)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status503ServiceUnavailable);
 
             heatHarmonyEndpoints.MapGet("/heatautomation/override",
                 ([FromServices] IRequestProvider requestProvider) =>
@@ -219,8 +227,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                         $"{heatHarmonyUrl}/heatautomation/override"))
                 .WithName("GetOverrideStatus")
                 .Produces<HeatAutomationOverrideResponse>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status503ServiceUnavailable)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status503ServiceUnavailable);
 
             heatHarmonyEndpoints.MapPost("/heatautomation/override",
                 async ([FromServices] IRequestProvider requestProvider, TemperatureOverride body) =>
@@ -262,8 +269,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                 .Produces<HeatAutomationOverrideResponse>(StatusCodes.Status202Accepted)
                 .Produces<HeatAutomationErrorResponse>(StatusCodes.Status400BadRequest)
                 .Produces<HeatAutomationErrorResponse>(StatusCodes.Status409Conflict)
-                .Produces(StatusCodes.Status500InternalServerError)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status500InternalServerError);
 
             heatHarmonyEndpoints.MapDelete("/heatautomation/override",
                 async ([FromServices] IRequestProvider requestProvider) =>
@@ -283,8 +289,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                 })
                 .WithName("CancelOverrideTemp")
                 .Produces<HeatAutomationRemoveOverrideResponse>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status500InternalServerError)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status500InternalServerError);
 
             heatHarmonyEndpoints.MapGet("/heishamon/latest",
                 ([FromServices] IRequestProvider requestProvider) =>
@@ -294,8 +299,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                         $"{heatHarmonyUrl}/heishamon/latest"))
                 .WithName("GetLatestHeishaMonReadings")
                 .Produces<HeishaMonLatestResponse>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status500InternalServerError)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status500InternalServerError);
 
             heatHarmonyEndpoints.MapGet("/heishamon/task",
                 ([FromServices] IRequestProvider requestProvider) =>
@@ -305,8 +309,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                         $"{heatHarmonyUrl}/heishamon/task"))
                 .WithName("GetHeishaMonProviderTask")
                 .Produces<HeishaMonTaskResponse>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status500InternalServerError)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status500InternalServerError);
 
             heatHarmonyEndpoints.MapGet("/heishamon/status",
                 ([FromServices] IRequestProvider requestProvider) =>
@@ -316,8 +319,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                         $"{heatHarmonyUrl}/heishamon/status"))
                 .WithName("GetHeishaMonProviderStatus")
                 .Produces<HeishaMonStatusResponse>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status500InternalServerError)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status500InternalServerError);
 
             heatHarmonyEndpoints.MapGet("/ouman/latest",
                 ([FromServices] IRequestProvider requestProvider) =>
@@ -327,8 +329,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                         $"{heatHarmonyUrl}/ouman/latest"))
                 .WithName("GetLatestOumanReadings")
                 .Produces<OumanLatestResponse>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status500InternalServerError)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status500InternalServerError);
 
             heatHarmonyEndpoints.MapGet("/ouman/status",
                 ([FromServices] IRequestProvider requestProvider) =>
@@ -338,8 +339,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                         $"{heatHarmonyUrl}/ouman/status"))
                 .WithName("GetOumanStatus")
                 .Produces<OumanStatusResponse>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status500InternalServerError)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status500InternalServerError);
 
             heatHarmonyEndpoints.MapGet("/ouman/task",
                 ([FromServices] IRequestProvider requestProvider) =>
@@ -349,8 +349,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                         $"{heatHarmonyUrl}/ouman/task"))
                 .WithName("GetOumanProviderTask")
                 .Produces<OumanTaskResponse>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status500InternalServerError)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status500InternalServerError);
 
             heatHarmonyEndpoints.MapGet("/prices/today",
                 ([FromServices] IRequestProvider requestProvider) =>
@@ -360,8 +359,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                         $"{heatHarmonyUrl}/prices/today"))
                 .WithName("GetTodayPrices")
                 .Produces<PriceTodayResponse>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status500InternalServerError)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status500InternalServerError);
 
             heatHarmonyEndpoints.MapGet("/prices/tomorrow",
                 ([FromServices] IRequestProvider requestProvider) =>
@@ -371,8 +369,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                         $"{heatHarmonyUrl}/prices/tomorrow"))
                 .WithName("GetTomorrowPrices")
                 .Produces<PriceTomorrowResponse>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status500InternalServerError)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status500InternalServerError);
 
             heatHarmonyEndpoints.MapGet("/prices/lowperiods/today",
                 ([FromServices] IRequestProvider requestProvider) =>
@@ -382,8 +379,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                         $"{heatHarmonyUrl}/prices/lowperiods/today"))
                 .WithName("GetTodayLowPeriods")
                 .Produces<TodayLowPeriodsResponse>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status500InternalServerError)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status500InternalServerError);
 
             heatHarmonyEndpoints.MapGet("/prices/lowperiods/all",
                 ([FromServices] IRequestProvider requestProvider) =>
@@ -393,8 +389,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                         $"{heatHarmonyUrl}/prices/lowperiods/all"))
                 .WithName("GetAllLowPeriods")
                 .Produces<AllLowPeriodsResponse>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status500InternalServerError)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status500InternalServerError);
 
             heatHarmonyEndpoints.MapGet("/prices/nightperiod",
                 ([FromServices] IRequestProvider requestProvider) =>
@@ -404,8 +399,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                         $"{heatHarmonyUrl}/prices/nightperiod"))
                 .WithName("GetNightPeriod")
                 .Produces<NightPeriodResponse>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status500InternalServerError)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status500InternalServerError);
 
             heatHarmonyEndpoints.MapGet("/trv/latest",
                 ([FromServices] IRequestProvider requestProvider) =>
@@ -415,8 +409,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                         $"{heatHarmonyUrl}/trv/latest"))
                 .WithName("GetLatestTRVReadings")
                 .Produces<TRVLatestResponse>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status500InternalServerError)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status500InternalServerError);
 
             heatHarmonyEndpoints.MapGet("/trv/task",
                 ([FromServices] IRequestProvider requestProvider) =>
@@ -426,8 +419,40 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                         $"{heatHarmonyUrl}/trv/task"))
                 .WithName("GetTRVProviderTask")
                 .Produces<TRVTaskResponse>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status500InternalServerError)
-                .RequireAuthorization();
+                .Produces(StatusCodes.Status500InternalServerError);
+
+            heatHarmonyEndpoints.MapPost("/oilburner/enable", async ([FromServices] IRequestProvider requestProvider) =>
+                {
+                    try
+                    {
+                        await requestProvider.PostAsync(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/oilburner/enable");
+                        return Results.Accepted();
+                    }
+                    catch (Exception ex)
+                    {
+                        app.Logger.LogError(ex, "Error occurred while enabling oil burner");
+                        return Results.StatusCode(StatusCodes.Status500InternalServerError);
+                    }
+                })
+                .WithName("EnableOilBurner")
+                .Produces(StatusCodes.Status202Accepted)
+                .Produces(StatusCodes.Status500InternalServerError);
+            heatHarmonyEndpoints.MapPost("/oilburner/disable", async ([FromServices] IRequestProvider requestProvider) =>
+                {
+                    try
+                    {
+                        await requestProvider.PostAsync(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/oilburner/disable");
+                        return Results.Accepted();
+                    }
+                    catch (Exception ex)
+                    {
+                        app.Logger.LogError(ex, "Error occurred while disabling oil burner");
+                        return Results.StatusCode(StatusCodes.Status500InternalServerError);
+                    }
+                })
+                .WithName("DisableOilBurner")
+                .Produces(StatusCodes.Status202Accepted)
+                .Produces(StatusCodes.Status500InternalServerError);
         }
     }
 }

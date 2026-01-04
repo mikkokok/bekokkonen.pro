@@ -1,8 +1,5 @@
-﻿using Microsoft.AspNetCore.OpenApi;
-using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.Identity.Web.Resource;
+﻿using Microsoft.Identity.Web.Resource;
 using bekokkonen.pro.MQ.Implementation;
-using NuGet.Protocol;
 using Microsoft.AspNetCore.Mvc;
 using bekokkonen.pro.Routes.Hubs;
 namespace bekokkonen.pro.Routes.MapEndpoints
@@ -18,18 +15,15 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                 httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
                 return TypedResults.Ok(mqClient.Initialization.Exception?.Message);
             })
-            .WithName("GetMQClientTask")
-            .WithOpenApi()
-            .RequireAuthorization();
+            .WithName("GetMQClientTask");
             electricityEndpoints.MapGet("/consumption/history", ([FromServices] MQClient mqClient, HttpContext httpContext) =>
             {
                 httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
                 var historyData = mqClient.GetConsumptionDataHistory();
                 return TypedResults.Ok(historyData);
-            }).RequireAuthorization();
-            electricityEndpoints.MapHub<ConsumptionHub>("/consumption")
-            .WithOpenApi()
-            .RequireAuthorization();
+            })
+            .WithName("GetConsumptionHistory");
+            electricityEndpoints.MapHub<ConsumptionHub>("/consumption");
         }
     }
 }
