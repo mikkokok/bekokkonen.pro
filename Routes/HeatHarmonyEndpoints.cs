@@ -11,7 +11,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
     {
         public static void MapHeatHarmonyEndpoints(this WebApplication app)
         {
-            var heatHarmonyEndpoints = app.MapGroup("/api/heatharmony").WithTags("HeatHarmonyEndpoints");
+            var heatHarmonyEndpoints = app.MapGroup("/api/heatharmony").WithTags("HeatHarmonyEndpoints").RequireAuthorization();
             var heatHarmonyUrl = GlobalConfig.HeatHarmonyConfig!.BaseUrl;
 
             static async Task<IResult> ProxyGetNullable<T>(IRequestProvider requestProvider, string clientName, string url)
