@@ -65,6 +65,16 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                 .Produces<EmLatestResponse>(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status503ServiceUnavailable);
 
+            heatHarmonyEndpoints.MapGet("/heishamon/latestHistory",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGetNullable<IEnumerable<HeishaMonLatestResponse>>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/heishamon/latestHistory"))
+                .WithName("GetHeishaMonHistory")
+                .Produces<IEnumerable<HeishaMonLatestResponse>>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status503ServiceUnavailable);
+
             heatHarmonyEndpoints.MapGet("/em/changes",
                 ([FromServices] IRequestProvider requestProvider) =>
                     ProxyGetNullable<EmChangesResponse>(
@@ -77,21 +87,21 @@ namespace bekokkonen.pro.Routes.MapEndpoints
 
             heatHarmonyEndpoints.MapGet("/oilburner/changes",
                 ([FromServices] IRequestProvider requestProvider) =>
-                    ProxyGetNullable<EmChangesResponse>(
+                    ProxyGetNullable<OilBurnerChangesResponse>(
                         requestProvider,
                         HttpClientConst.HeatHarmony,
                         $"{heatHarmonyUrl}/oilburner/changes"))
-                .WithName("GetOilBurnerHistory")
-                .Produces<EmChangesResponse>(StatusCodes.Status200OK)
+                .WithName("GetOilBurnerChanges")
+                .Produces<OilBurnerChangesResponse>(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status503ServiceUnavailable);
 
             heatHarmonyEndpoints.MapGet("/oilburner/latest",
                 ([FromServices] IRequestProvider requestProvider) =>
-                    ProxyGetNullable<EmChangesResponse>(
+                    ProxyGetNullable<OilBurnerLatestResponse>(
                         requestProvider,
                         HttpClientConst.HeatHarmony,
                         $"{heatHarmonyUrl}/oilburner/latest"))
-                .WithName("GetOilBurnerLatest")
+                .WithName("GetLatestOilBurner")
                 .Produces<OilBurnerLatestResponse>(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status503ServiceUnavailable);
 
@@ -136,7 +146,7 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                 {
                     try
                     {
-                        await requestProvider.DeleteAsync<object>(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/em/override/delete");
+                        await requestProvider.DeleteRawAsync(HttpClientConst.HeatHarmony, $"{heatHarmonyUrl}/em/override/delete");
                         return Results.Ok();
                     }
                     catch (Exception ex)
@@ -221,12 +231,12 @@ namespace bekokkonen.pro.Routes.MapEndpoints
 
             heatHarmonyEndpoints.MapGet("/heatautomation/override",
                 ([FromServices] IRequestProvider requestProvider) =>
-                    ProxyGetNullable<HeatAutomationOverrideResponse>(
+                    ProxyGetNullable<HeatAutomationOverrideStatusResponse>(
                         requestProvider,
                         HttpClientConst.HeatHarmony,
                         $"{heatHarmonyUrl}/heatautomation/override"))
                 .WithName("GetOverrideStatus")
-                .Produces<HeatAutomationOverrideResponse>(StatusCodes.Status200OK)
+                .Produces<HeatAutomationOverrideStatusResponse>(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status503ServiceUnavailable);
 
             heatHarmonyEndpoints.MapPost("/heatautomation/override",
@@ -246,13 +256,13 @@ namespace bekokkonen.pro.Routes.MapEndpoints
 
                         if (statusCode == StatusCodes.Status202Accepted)
                         {
-                            var okPayload = JsonSerializer.Deserialize<HeatAutomationOverrideResponse>(content);
+                            var okPayload = JsonSerializer.Deserialize<HeatAutomationOverrideAcceptedResponse>(content);
                             return TypedResults.Accepted(string.Empty, okPayload);
                         }
 
                         if (statusCode is StatusCodes.Status400BadRequest or StatusCodes.Status409Conflict)
                         {
-                            var errorPayload = JsonSerializer.Deserialize<HeatAutomationErrorResponse>(content);
+                            var errorPayload = JsonSerializer.Deserialize<ErrorResponse>(content);
                             return TypedResults.Json(errorPayload, statusCode: statusCode);
                         }
 
@@ -266,9 +276,9 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                     }
                 })
                 .WithName("SetOverrideTemp")
-                .Produces<HeatAutomationOverrideResponse>(StatusCodes.Status202Accepted)
-                .Produces<HeatAutomationErrorResponse>(StatusCodes.Status400BadRequest)
-                .Produces<HeatAutomationErrorResponse>(StatusCodes.Status409Conflict)
+                .Produces<HeatAutomationOverrideAcceptedResponse>(StatusCodes.Status202Accepted)
+                .Produces<ErrorResponse>(StatusCodes.Status400BadRequest)
+                .Produces<ErrorResponse>(StatusCodes.Status409Conflict)
                 .Produces(StatusCodes.Status500InternalServerError);
 
             heatHarmonyEndpoints.MapDelete("/heatautomation/override",
@@ -276,10 +286,29 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                 {
                     try
                     {
-                        var response = await requestProvider.DeleteAsync<HeatAutomationRemoveOverrideResponse>(
+                        var (statusCode, content) = await requestProvider.DeleteRawAsync(
                             HttpClientConst.HeatHarmony,
                             $"{heatHarmonyUrl}/heatautomation/override");
-                        return Results.Ok(response);
+
+                        if (string.IsNullOrWhiteSpace(content))
+                        {
+                            return Results.StatusCode(statusCode);
+                        }
+
+                        if (statusCode == StatusCodes.Status200OK)
+                        {
+                            var okPayload = JsonSerializer.Deserialize<HeatAutomationOverrideCancelledResponse>(content);
+                            return Results.Ok(okPayload);
+                        }
+
+                        if (statusCode == StatusCodes.Status409Conflict)
+                        {
+                            var errorPayload = JsonSerializer.Deserialize<ErrorResponse>(content);
+                            return TypedResults.Json(errorPayload, statusCode: statusCode);
+                        }
+
+                        var unknown = JsonSerializer.Deserialize<object>(content);
+                        return TypedResults.Json(unknown, statusCode: statusCode);
                     }
                     catch (Exception ex)
                     {
@@ -288,7 +317,18 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                     }
                 })
                 .WithName("CancelOverrideTemp")
-                .Produces<HeatAutomationRemoveOverrideResponse>(StatusCodes.Status200OK)
+                .Produces<HeatAutomationOverrideCancelledResponse>(StatusCodes.Status200OK)
+                .Produces<ErrorResponse>(StatusCodes.Status409Conflict)
+                .Produces(StatusCodes.Status500InternalServerError);
+
+            heatHarmonyEndpoints.MapGet("/heatautomation/heatperiod",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGet<string>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/heatautomation/heatperiod"))
+                .WithName("GetHeatingPeriodSource")
+                .Produces<string>(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status500InternalServerError);
 
             heatHarmonyEndpoints.MapGet("/heishamon/latest",
@@ -331,6 +371,16 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                 .Produces<OumanLatestResponse>(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status500InternalServerError);
 
+            heatHarmonyEndpoints.MapGet("/ouman/latestHistory",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGet<IEnumerable<OumanLatestResponse>>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/ouman/latestHistory"))
+                .WithName("GetLatestOumanHistory")
+                .Produces<IEnumerable<OumanLatestResponse>>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status500InternalServerError);
+
             heatHarmonyEndpoints.MapGet("/ouman/status",
                 ([FromServices] IRequestProvider requestProvider) =>
                     ProxyGet<OumanStatusResponse>(
@@ -353,23 +403,23 @@ namespace bekokkonen.pro.Routes.MapEndpoints
 
             heatHarmonyEndpoints.MapGet("/prices/today",
                 ([FromServices] IRequestProvider requestProvider) =>
-                    ProxyGet<PriceTodayResponse>(
+                    ProxyGetNullable<PriceTodayResponse>(
                         requestProvider,
                         HttpClientConst.HeatHarmony,
                         $"{heatHarmonyUrl}/prices/today"))
                 .WithName("GetTodayPrices")
                 .Produces<PriceTodayResponse>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status500InternalServerError);
+                .Produces(StatusCodes.Status503ServiceUnavailable);
 
             heatHarmonyEndpoints.MapGet("/prices/tomorrow",
                 ([FromServices] IRequestProvider requestProvider) =>
-                    ProxyGet<PriceTomorrowResponse>(
+                    ProxyGetNullable<PriceTomorrowResponse>(
                         requestProvider,
                         HttpClientConst.HeatHarmony,
                         $"{heatHarmonyUrl}/prices/tomorrow"))
                 .WithName("GetTomorrowPrices")
                 .Produces<PriceTomorrowResponse>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status500InternalServerError);
+                .Produces(StatusCodes.Status503ServiceUnavailable);
 
             heatHarmonyEndpoints.MapGet("/prices/lowperiods/today",
                 ([FromServices] IRequestProvider requestProvider) =>
@@ -393,12 +443,22 @@ namespace bekokkonen.pro.Routes.MapEndpoints
 
             heatHarmonyEndpoints.MapGet("/prices/nightperiod",
                 ([FromServices] IRequestProvider requestProvider) =>
-                    ProxyGet<NightPeriodResponse>(
+                    ProxyGet<HeatingPeriodResponse>(
                         requestProvider,
                         HttpClientConst.HeatHarmony,
                         $"{heatHarmonyUrl}/prices/nightperiod"))
                 .WithName("GetNightPeriod")
-                .Produces<NightPeriodResponse>(StatusCodes.Status200OK)
+                .Produces<HeatingPeriodResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status500InternalServerError);
+
+            heatHarmonyEndpoints.MapGet("/prices/dayperiod",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGet<HeatingPeriodResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/prices/dayperiod"))
+                .WithName("GetDayPeriod")
+                .Produces<HeatingPeriodResponse>(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status500InternalServerError);
 
             heatHarmonyEndpoints.MapGet("/trv/latest",
@@ -452,6 +512,66 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                 })
                 .WithName("DisableOilBurner")
                 .Produces(StatusCodes.Status202Accepted)
+                .Produces(StatusCodes.Status500InternalServerError);
+
+            heatHarmonyEndpoints.MapGet("/pro3/status",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGet<IEnumerable<Pro3SetResponse>>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/pro3/status"))
+                .WithName("GetPro3Status")
+                .Produces<IEnumerable<Pro3SetResponse>>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status500InternalServerError);
+
+            heatHarmonyEndpoints.MapPost("/pro3/override",
+                async ([FromServices] IRequestProvider requestProvider, [FromQuery] int outputAmount, [FromQuery] bool output, [FromQuery] int durationMinutes) =>
+                {
+                    try
+                    {
+                        var response = await requestProvider.PostAsync<Pro3OverrideAcceptedResponse>(
+                            HttpClientConst.HeatHarmony,
+                            $"{heatHarmonyUrl}/pro3/override?outputAmount={outputAmount}&output={output}&durationMinutes={durationMinutes}");
+                        return Results.Ok(response);
+                    }
+                    catch (Exception ex)
+                    {
+                        app.Logger.LogError(ex, "Error occurred while overriding Pro3 output");
+                        return Results.StatusCode(StatusCodes.Status400BadRequest);
+                    }
+                })
+                .WithName("OverridePro3Output")
+                .Produces<Pro3OverrideAcceptedResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status400BadRequest);
+
+            heatHarmonyEndpoints.MapPost("/pro3/override/cancel",
+                async ([FromServices] IRequestProvider requestProvider) =>
+                {
+                    try
+                    {
+                        var response = await requestProvider.PostAsync<Pro3OverrideCancelledResponse>(
+                            HttpClientConst.HeatHarmony,
+                            $"{heatHarmonyUrl}/pro3/override/cancel");
+                        return Results.Ok(response);
+                    }
+                    catch (Exception ex)
+                    {
+                        app.Logger.LogError(ex, "Error occurred while cancelling Pro3 override");
+                        return Results.StatusCode(StatusCodes.Status400BadRequest);
+                    }
+                })
+                .WithName("CancelPro3Override")
+                .Produces<Pro3OverrideCancelledResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status400BadRequest);
+
+            heatHarmonyEndpoints.MapGet("/pro3/override/status",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGet<Pro3OverrideStatusResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/pro3/override/status"))
+                .WithName("GetPro3OverrideStatus")
+                .Produces<Pro3OverrideStatusResponse>(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status500InternalServerError);
         }
     }

@@ -3,8 +3,8 @@
     public sealed class EmOverrideStatusResponse
     {
         #pragma warning disable IDE1006 // Naming Styles
-        public EMOverrideMode OverrideMode { get; set; }
-        public bool IsOverrideActive { get; set; }
-        public DateTime OverrideUntil { get; set; }
+        public EMOverrideMode overrideMode { get; set; }
+        public bool isOverrideActive { get; set; }
+        public DateTime? overrideUntil { get; set; }
     }
 }
