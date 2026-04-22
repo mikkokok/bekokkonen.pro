@@ -10,40 +10,38 @@ using System.Text.Json;
 
 namespace bekokkonen.pro.MQ.Implementation
 {
-    public sealed class MQClient : IAsyncInitialization
+    public sealed class MQClient(ILogger<MQClient> logger, IHubContext<ConsumptionHub> electricityHub)
     {
-        private string _serviceName;
+        private string _serviceName = nameof(MQClient);
         private readonly string _clientId = "bekokkonenpro";
-        private ILogger<MQClient> _logger;
-        private GlobalConfig.RabbitMQ _mqConfig;
-        private IHubContext<ConsumptionHub> _consumptionHub;
+        private readonly ILogger<MQClient> _logger = logger;
+        private readonly GlobalConfig.RabbitMQ _mqConfig = GlobalConfig.RabbitMQConfig!;
+        private readonly IHubContext<ConsumptionHub> _consumptionHub = electricityHub;
         private ConsumptionData? _consumptionData;
-        private List<ConsumptionData> _consumptionDataHistoryList = [];
+        private readonly List<ConsumptionData> _consumptionDataHistoryList = [];
+        public MQStatusEnum Status { get; private set; } = MQStatusEnum.Disconnected;
 
-
-        public MQClient(ILogger<MQClient> logger, IHubContext<ConsumptionHub> electricityHub)
-        {
-            _serviceName = nameof(MQClient);
-            _logger = logger;
-            _mqConfig = GlobalConfig.RabbitMQConfig!;
-            _consumptionHub = electricityHub;
-            Initialization = StartMqttClient();
-        }
-
-        public Task Initialization { get; private set; }
+        public Task? Initialization;
 
         public List<ConsumptionData> GetConsumptionDataHistory()
         {
             return _consumptionDataHistoryList;
         }
 
-        private async Task StartMqttClient()
+        public async Task InitializeMqttClient()
         {
-            _logger.LogInformation("{ServiceName}:: Start MQtt client", _serviceName);
+            _logger.LogInformation("{ServiceName}:: Initialize MQtt client", _serviceName);
+            Status = MQStatusEnum.Connecting;
             try
             {
                 var mqttClient = new MqttClientFactory().CreateMqttClient();
                 mqttClient.ApplicationMessageReceivedAsync += m => HandleMessage(m.ApplicationMessage);
+                mqttClient.DisconnectedAsync += e =>
+                {
+                    _logger.LogWarning("{ServiceName}:: MQtt client disconnected: {Reason}", _serviceName, e.Reason);
+                    Status = MQStatusEnum.Disconnected;
+                    return Task.CompletedTask;
+                };
 
                 var mqttClientOptions = new MqttClientOptionsBuilder()
                     .WithTcpServer(_mqConfig.mqttServer, 1883)
@@ -65,10 +63,11 @@ namespace bekokkonen.pro.MQ.Implementation
             }
             catch (Exception ex)
             {
+                Status = MQStatusEnum.Error;
                 _logger.LogError(ex, "{ServiceName}:: MQtt client error {ErrorMessage}", _serviceName, ex.Message);
                 throw;
             }
-
+            Status = MQStatusEnum.Connected;
             _logger.LogInformation("{ServiceName}:: MQtt client connected successfully", _serviceName);
         }
 
@@ -150,7 +149,7 @@ namespace bekokkonen.pro.MQ.Implementation
         private void AddConsumptionHistory(ConsumptionData consumptionData)
         {
             _consumptionDataHistoryList.Add(consumptionData);
-            _consumptionDataHistoryList.RemoveAll(cd => cd.Timestamp < DateTime.Now.AddDays(-2));
+            _consumptionDataHistoryList.RemoveAll(cd => cd.Timestamp < DateTime.Now.AddDays(-5));
         }
     }
 }

@@ -10,6 +10,7 @@
         public Task<TResult?> PostAsync<TRequest, TResult>(string clientName, string url, TRequest data);
 
         Task<TResult?> DeleteAsync<TResult>(string clientName, string url);
+        Task<(int StatusCode, string? Content)> DeleteRawAsync(string clientName, string url);
         Task<(int StatusCode, string? Content)> PostRawAsync<TRequest>(string clientName, string url, TRequest data);
     }
 }

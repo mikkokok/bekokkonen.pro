@@ -56,7 +56,7 @@ namespace bekokkonen.pro
                 options.AddDefaultPolicy(policy =>
                 {
                     policy.WithOrigins("http://localhost:5173", "https://kokkonen.pro", "http://192.168.1.38:5173")
-                          .WithMethods("GET")
+                          .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                           .AllowAnyHeader()
                           .AllowCredentials();
                 });

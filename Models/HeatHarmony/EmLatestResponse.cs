@@ -3,9 +3,9 @@
 #pragma warning disable IDE1006 // Naming Styles
     public sealed class EmLatestResponse
     {
-        public DateTime LastEnabled { get; set; }
-        public bool IsOverridden { get; set; }
+        public DateTime lastEnabled { get; set; }
+        public bool isOverridden { get; set; }
         public bool isRunning { get; set; }
-        public bool IsOn { get; set; }
+        public bool isOn { get; set; }
     }
 }

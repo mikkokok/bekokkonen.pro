@@ -196,6 +196,8 @@ namespace bekokkonen.pro.Providers
             var httpClient = _httpClientFactory.CreateClient(clientName);
             try
             {
+                PatchIfHeatHarmony(clientName, httpClient);
+
                 using var response = await httpClient.DeleteAsync(url);
                 await HandleResponse(response);
 
@@ -209,6 +211,27 @@ namespace bekokkonen.pro.Providers
                 _logger.LogError(
                     ex,
                     "{Timestamp} {ServiceName} {OperationId}:: Error deleting from {Url}",
+                    DateTime.Now, _serviceName, _operationId, url);
+                throw;
+            }
+        }
+
+        public async Task<(int StatusCode, string? Content)> DeleteRawAsync(string clientName, string url)
+        {
+            var httpClient = _httpClientFactory.CreateClient(clientName);
+            try
+            {
+                PatchIfHeatHarmony(clientName, httpClient);
+
+                using var response = await httpClient.DeleteAsync(url);
+                var content = await response.Content.ReadAsStringAsync();
+                return ((int)response.StatusCode, string.IsNullOrWhiteSpace(content) ? null : content);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "{Timestamp} {ServiceName} {OperationId}:: Error sending raw DELETE request to {Url}",
                     DateTime.Now, _serviceName, _operationId, url);
                 throw;
             }
