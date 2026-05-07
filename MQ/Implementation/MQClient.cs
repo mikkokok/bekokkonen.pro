@@ -10,15 +10,17 @@ using System.Text.Json;
 
 namespace bekokkonen.pro.MQ.Implementation
 {
-    public sealed class MQClient(ILogger<MQClient> logger, IHubContext<ConsumptionHub> electricityHub)
+    public sealed class MQClient(ILogger<MQClient> logger, IHubContext<ConsumptionHub, IConsumptionHubClient> electricityHub)
     {
         private string _serviceName = nameof(MQClient);
-        private readonly string _clientId = "bekokkonenpro";
+        private readonly string _clientId = "bekokkonenproot";
         private readonly ILogger<MQClient> _logger = logger;
         private readonly GlobalConfig.RabbitMQ _mqConfig = GlobalConfig.RabbitMQConfig!;
-        private readonly IHubContext<ConsumptionHub> _consumptionHub = electricityHub;
+        private readonly IHubContext<ConsumptionHub, IConsumptionHubClient> _consumptionHub = electricityHub;
         private ConsumptionData? _consumptionData;
+        private WemosData? _wemosData;
         private readonly List<ConsumptionData> _consumptionDataHistoryList = [];
+        private readonly List<WemosData> _wemosDataHistoryList = [];
         public MQStatusEnum Status { get; private set; } = MQStatusEnum.Disconnected;
 
         public Task? Initialization;
@@ -26,6 +28,10 @@ namespace bekokkonen.pro.MQ.Implementation
         public List<ConsumptionData> GetConsumptionDataHistory()
         {
             return _consumptionDataHistoryList;
+        }
+        public List<WemosData> GetWemosDataHistory()
+        {
+            return _wemosDataHistoryList;
         }
 
         public async Task InitializeMqttClient()
@@ -77,10 +83,15 @@ namespace bekokkonen.pro.MQ.Implementation
             if (double.TryParse(payload, out double consumptionValue))
             {
                 _consumptionData ??= new ConsumptionData
-                    {
-                        Timestamp = DateTime.Now,
-                        Data = []
-                    };
+                {
+                    Timestamp = DateTime.Now,
+                    Data = []
+                };
+                _wemosData ??= new WemosData
+                {
+                    Timestamp = DateTime.Now,
+                    Data = []
+                };
 
                 switch (applicationMessage.Topic)
                 {
@@ -123,6 +134,21 @@ namespace bekokkonen.pro.MQ.Implementation
                     case "p1meter/cumulative_power_yield":
                         _consumptionData.Data.Add(ConsumptionKeys.CumulativePowerYield, consumptionValue);
                         break;
+                    case "p1meter/free_heap":
+                        _wemosData.Data.Add(WemosDataKeys.FreeHeap, consumptionValue);
+                        break;
+                    case "p1meter/heap_fragmentation":
+                        _wemosData.Data.Add(WemosDataKeys.HeapFragmentation, consumptionValue);
+                        break;
+                    case "p1meter/max_free_block":
+                        _wemosData.Data.Add(WemosDataKeys.MaxFreeBlock, consumptionValue);
+                        break;
+                    case "p1meter/uptime_sec":
+                        _wemosData.Data.Add(WemosDataKeys.Uptime, consumptionValue);
+                        break;
+                    case "p1meter/wifi_rssi":
+                        _wemosData.Data.Add(WemosDataKeys.WifiSignalStrength, consumptionValue);
+                        break;
                     default:
                         _logger.LogInformation(
                             "{ServiceName}:: Received message {Payload} in {Topic}",
@@ -139,9 +165,14 @@ namespace bekokkonen.pro.MQ.Implementation
                         _serviceName,
                         _consumptionData.Timestamp);
 
-                    await _consumptionHub.Clients.All.SendAsync("broadcastConsumptionData", _consumptionData);
+                    await _consumptionHub.Clients.All.BroadcastConsumptionData(_consumptionData);
                     AddConsumptionHistory(_consumptionData);
                     _consumptionData = null;
+                }
+                if (_wemosData?.Data.Count == 5)
+                {
+                    AddWemosHistory(_wemosData);
+                    _wemosData = null;
                 }
             }
         }
@@ -149,7 +180,13 @@ namespace bekokkonen.pro.MQ.Implementation
         private void AddConsumptionHistory(ConsumptionData consumptionData)
         {
             _consumptionDataHistoryList.Add(consumptionData);
-            _consumptionDataHistoryList.RemoveAll(cd => cd.Timestamp < DateTime.Now.AddDays(-5));
+            _consumptionDataHistoryList.RemoveAll(cd => cd.Timestamp < DateTime.Now.AddDays(-7));
+        }
+
+        private void AddWemosHistory(WemosData wemosData)
+        {
+            _wemosDataHistoryList.Add(wemosData);
+            _wemosDataHistoryList.RemoveAll(cd => cd.Timestamp < DateTime.Now.AddDays(-7));
         }
     }
 }
