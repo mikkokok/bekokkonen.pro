@@ -516,12 +516,12 @@ namespace bekokkonen.pro.Routes.MapEndpoints
 
             heatHarmonyEndpoints.MapGet("/pro3/status",
                 ([FromServices] IRequestProvider requestProvider) =>
-                    ProxyGet<IEnumerable<Pro3SetResponse>>(
+                    ProxyGet<IEnumerable<Pro3StatusResponse>>(
                         requestProvider,
                         HttpClientConst.HeatHarmony,
                         $"{heatHarmonyUrl}/pro3/status"))
                 .WithName("GetPro3Status")
-                .Produces<IEnumerable<Pro3SetResponse>>(StatusCodes.Status200OK)
+                .Produces<IEnumerable<Pro3StatusResponse>>(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status500InternalServerError);
 
             heatHarmonyEndpoints.MapPost("/pro3/override",

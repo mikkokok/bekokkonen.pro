@@ -6,5 +6,6 @@
         public required int Hours { get; set; }
         public required bool OverRidePrevious { get; set; }
         public int Delay { get; set; } = 0;
+        public int QuietMode { get; set; } = 0;
     }
 }

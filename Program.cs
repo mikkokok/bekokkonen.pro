@@ -2,6 +2,7 @@ using bekokkonen.pro.Global.Config;
 using bekokkonen.pro.MQ;
 using bekokkonen.pro.MQ.Implementation;
 using bekokkonen.pro.Providers;
+using bekokkonen.pro.Routes;
 using bekokkonen.pro.Routes.Hubs;
 using bekokkonen.pro.Routes.MapEndpoints;
 using bekokkonen.pro.Routes.Middlewares;
@@ -81,6 +82,7 @@ namespace bekokkonen.pro
             app.MapPingEndpoints();
             app.MapElectricityEndpoints();
             app.MapHeatHarmonyEndpoints();
+            app.MapWemosEndpoints();
 
             app.Run();
         }
