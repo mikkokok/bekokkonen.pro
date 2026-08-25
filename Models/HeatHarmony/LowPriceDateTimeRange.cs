@@ -7,5 +7,6 @@ namespace bekokkonen.pro.Models.HeatHarmony
         public DateTime end { get; init; }
         public int rank { get; init; }
         public double averagePrice { get; init; }
+        public bool isDataValid { get; init; }
     }
 }

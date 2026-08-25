@@ -331,6 +331,25 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                 .Produces<string>(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status500InternalServerError);
 
+            heatHarmonyEndpoints.MapGet("/heatautomation/heatperiodhours",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGet<object>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/heatautomation/heatperiodhours"))
+                .Produces(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status500InternalServerError);
+
+            heatHarmonyEndpoints.MapGet("/heatautomation/selectedtemps",
+                ([FromServices] IRequestProvider requestProvider) =>
+                    ProxyGet<SelectedTempsResponse>(
+                        requestProvider,
+                        HttpClientConst.HeatHarmony,
+                        $"{heatHarmonyUrl}/heatautomation/selectedtemps"))
+                .WithName("GetSelectedTemps")
+                .Produces<SelectedTempsResponse>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status500InternalServerError);
+
             heatHarmonyEndpoints.MapGet("/heishamon/latest",
                 ([FromServices] IRequestProvider requestProvider) =>
                     ProxyGet<HeishaMonLatestResponse>(
@@ -513,6 +532,25 @@ namespace bekokkonen.pro.Routes.MapEndpoints
                 .WithName("DisableOilBurner")
                 .Produces(StatusCodes.Status202Accepted)
                 .Produces(StatusCodes.Status500InternalServerError);
+
+            heatHarmonyEndpoints.MapGet("/restlessfalcon/avgtemp",
+                async ([FromServices] IRequestProvider requestProvider, [FromQuery] int days) =>
+                {
+                    try
+                    {   
+                        var result = await requestProvider.GetAsync<object>(
+                            HttpClientConst.HeatHarmony,
+                            $"{heatHarmonyUrl}/restlessfalcon/avgtemp?days={days}");
+                        return Results.Ok(result);
+                    }
+                    catch
+                    {
+                        return Results.NotFound();
+                    }
+                })
+                .WithName("GetRestlessFalconAvgTemperature")
+                .Produces(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status404NotFound);
 
             heatHarmonyEndpoints.MapGet("/pro3/status",
                 ([FromServices] IRequestProvider requestProvider) =>
