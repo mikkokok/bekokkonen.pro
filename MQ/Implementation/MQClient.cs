@@ -1,19 +1,16 @@
 ﻿using bekokkonen.pro.Global.Config;
-using bekokkonen.pro.Global.Interfaces;
 using bekokkonen.pro.Models;
 using bekokkonen.pro.Routes.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using MQTTnet;
-using MQTTnet.Packets;
 using System.Text;
-using System.Text.Json;
 
 namespace bekokkonen.pro.MQ.Implementation
 {
     public sealed class MQClient(ILogger<MQClient> logger, IHubContext<ConsumptionHub, IConsumptionHubClient> electricityHub)
     {
         private string _serviceName = nameof(MQClient);
-        private readonly string _clientId = "bekokkonenproot";
+        private readonly string _clientId = "bekokkonen";
         private readonly ILogger<MQClient> _logger = logger;
         private readonly GlobalConfig.RabbitMQ _mqConfig = GlobalConfig.RabbitMQConfig!;
         private readonly IHubContext<ConsumptionHub, IConsumptionHubClient> _consumptionHub = electricityHub;
@@ -22,7 +19,6 @@ namespace bekokkonen.pro.MQ.Implementation
         private readonly List<ConsumptionData> _consumptionDataHistoryList = [];
         private readonly List<WemosData> _wemosDataHistoryList = [];
         public MQStatusEnum Status { get; private set; } = MQStatusEnum.Disconnected;
-
         public Task? Initialization;
 
         public List<ConsumptionData> GetConsumptionDataHistory()

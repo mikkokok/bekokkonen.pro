@@ -1,3 +1,4 @@
+using bekokkonen.pro.Extensions;
 using bekokkonen.pro.Global.Config;
 using bekokkonen.pro.MQ;
 using bekokkonen.pro.MQ.Implementation;
@@ -22,6 +23,13 @@ namespace bekokkonen.pro
             GlobalConfig.ApiDocumentConfig = builder.Configuration.GetRequiredSection("ApiDocument").Get<GlobalConfig.ApiDocument>()!;
             GlobalConfig.RabbitMQConfig = builder.Configuration.GetRequiredSection("RabbitMQ").Get<GlobalConfig.RabbitMQ>()!;
             GlobalConfig.HeatHarmonyConfig = builder.Configuration.GetRequiredSection("HeatHarmony").Get<GlobalConfig.HeatHarmony>()!;
+            GlobalConfig.PowerPricingConfig = builder.Configuration.GetRequiredSection("PowerPricing").Get<GlobalConfig.PowerPricing>()!;
+            GlobalConfig.Shelly1PMConfig = builder.Configuration.GetRequiredSection("Shelly1PM").Get<GlobalConfig.Shelly1PM>()!;
+            foreach (var (name, device) in GlobalConfig.Shelly1PMConfig.Devices)
+            {
+                device.Name = name;
+            }
+            GlobalConfig.RestlessFalconConfig = builder.Configuration.GetRequiredSection("RestlessFalcon").Get<GlobalConfig.RestlessFalcon>()!;
 
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
@@ -51,12 +59,15 @@ namespace bekokkonen.pro
             builder.Services.AddSingleton<MQClient>();
             builder.Services.AddHostedService<MQWorker>();
             builder.Services.AddTransient<IRequestProvider, RequestProvider>();
+            builder.Services.AddSingleton<Shelly1PMProvider>();
+            builder.Services.AddSingleton<RestlessFalconProvider>();
 
+            builder.AddHttpClients();
             builder.Services.AddCors(options =>
             {
                 options.AddDefaultPolicy(policy =>
                 {
-                    policy.WithOrigins("http://localhost:5173", "https://kokkonen.pro", "http://192.168.1.38:5173")
+                    policy.WithOrigins("http://localhost:5173", "https://kokkonen.pro", "http://192.168.1.38")
                           .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                           .AllowAnyHeader()
                           .AllowCredentials();
@@ -83,6 +94,8 @@ namespace bekokkonen.pro
             app.MapElectricityEndpoints();
             app.MapHeatHarmonyEndpoints();
             app.MapWemosEndpoints();
+            app.MapShelly1PMEndpoints();
+            app.MapRestlessFalconEndpoints();
 
             app.Run();
         }
